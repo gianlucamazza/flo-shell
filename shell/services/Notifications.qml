@@ -31,7 +31,7 @@ Singleton {
 
     function timeOf(n: Notification): string {
         const t = _times[n.id];
-        return t ? Qt.formatTime(t, "HH:mm") : "";
+        return t ? I18n.time(t) : "";
     }
 
     function dismiss(n: Notification): void {

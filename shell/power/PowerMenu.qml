@@ -16,10 +16,10 @@ PanelWindow {
     property string armed: ""
 
     readonly property var actions: [
-        { key: "lock", label: "Blocca", icon: "lock", confirm: false },
-        { key: "suspend", label: "Sospendi", icon: "moon", confirm: false },
-        { key: "reboot", label: "Riavvia", icon: "reboot", confirm: true },
-        { key: "poweroff", label: "Spegni", icon: "power", confirm: true }
+        { key: "lock", label: I18n.t("power.lock"), icon: "lock", confirm: false },
+        { key: "suspend", label: I18n.t("power.suspend"), icon: "moon", confirm: false },
+        { key: "reboot", label: I18n.t("power.reboot"), icon: "reboot", confirm: true },
+        { key: "poweroff", label: I18n.t("power.off"), icon: "power", confirm: true }
     ]
 
     Behavior on progress {
@@ -79,12 +79,12 @@ PanelWindow {
             spacing: Theme.spaceXs
 
             Label {
-                text: "Alimentazione"
+                text: I18n.t("power.title")
                 font.pixelSize: Theme.fontDisplay
                 font.weight: Font.DemiBold
             }
             Label {
-                text: win.armed !== "" ? "Tocca di nuovo per confermare" : Battery.available ? "Batteria " + Battery.percent + "%" + (Battery.charging ? ", in carica" : "") : ""
+                text: win.armed !== "" ? I18n.t("power.confirmHint") : Battery.available ? I18n.t("power.battery", Battery.percent) + (Battery.charging ? I18n.t("power.charging") : "") : ""
                 color: win.armed !== "" ? Theme.warn : Theme.textDim
             }
         }
@@ -132,7 +132,7 @@ PanelWindow {
                             }
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: tile.isArmed ? "Conferma" : tile.modelData.label
+                                text: tile.isArmed ? I18n.t("power.confirm") : tile.modelData.label
                                 color: tile.fg
                                 font.pixelSize: Theme.fontTitle
                                 font.weight: Font.DemiBold
@@ -150,7 +150,7 @@ PanelWindow {
 
                 Label {
                     anchors.centerIn: parent
-                    text: "Annulla"
+                    text: I18n.t("common.cancel")
                     color: Theme.textDim
                     font.weight: Font.DemiBold
                 }
