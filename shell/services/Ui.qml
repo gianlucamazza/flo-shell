@@ -12,19 +12,22 @@ Singleton {
     property bool launcherOpen: false
     property bool quickSettingsOpen: false
     property bool powerMenuOpen: false
+    property bool overviewOpen: false
 
     property bool launcherLoaded: false
     property bool quickSettingsLoaded: false
     property bool powerMenuLoaded: false
     property bool osdLoaded: false
+    property bool overviewLoaded: false
 
-    readonly property bool anyOpen: launcherOpen || quickSettingsOpen || powerMenuOpen
+    readonly property bool anyOpen: launcherOpen || quickSettingsOpen || powerMenuOpen || overviewOpen
 
     // OSD: kind is "volume" or "brightness".
     property string osdKind: ""
     property bool osdVisible: false
 
     function openLauncher(): void {
+        overviewOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
         launcherLoaded = true;
@@ -38,6 +41,7 @@ Singleton {
     }
 
     function openQuickSettings(): void {
+        overviewOpen = false;
         launcherOpen = false;
         powerMenuOpen = false;
         osdVisible = false;
@@ -52,13 +56,29 @@ Singleton {
     }
 
     function openPowerMenu(): void {
+        overviewOpen = false;
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuLoaded = true;
         powerMenuOpen = true;
     }
 
+    function openOverview(): void {
+        launcherOpen = false;
+        quickSettingsOpen = false;
+        powerMenuOpen = false;
+        overviewLoaded = true;
+        overviewOpen = true;
+    }
+    function toggleOverview(): void {
+        if (overviewOpen)
+            overviewOpen = false;
+        else
+            openOverview();
+    }
+
     function closeAll(): void {
+        overviewOpen = false;
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
@@ -70,6 +90,17 @@ Singleton {
             closeAll();
         else
             openLauncher();
+    }
+
+    // Development only: text for the lock pad, see lock/AuthPad.qml.
+    signal devInput(string text)
+
+    // Back: dismiss a shell panel first, otherwise ask the application.
+    function back(): void {
+        if (anyOpen)
+            closeAll();
+        else
+            Compositor.goBack();
     }
 
     function showOsd(kind: string): void {
