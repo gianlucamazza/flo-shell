@@ -1,0 +1,1 @@
+../shell/I18n.qml

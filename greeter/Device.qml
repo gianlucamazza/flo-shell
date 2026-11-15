@@ -1,0 +1,1 @@
+../shell/Device.qml
