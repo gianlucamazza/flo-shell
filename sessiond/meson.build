@@ -15,4 +15,11 @@ add_project_arguments(cc.get_supported_arguments([
 
 common = static_library('flo-common', 'src/util.c', 'src/config.c')
 
+sessiond = executable('flo-sessiond',
+  'src/main.c', 'src/boost.c', 'src/freezer.c', 'src/server.c',
+  link_with: common,
+  install: true,
+  install_dir: get_option('sbindir'),
+)
+
 subdir('tests')
