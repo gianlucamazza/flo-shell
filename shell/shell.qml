@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
+import qs
 import qs.services
 import qs.bar
 import qs.home
@@ -9,6 +11,8 @@ import qs.quicksettings
 import qs.notifications
 import qs.osd
 import qs.power
+import qs.overview
+import qs.lock
 
 // flo-shell entry point. One process; the two bars are always present, every
 // other surface is created on first use.
@@ -27,6 +31,14 @@ ShellRoot {
     LazyLoader {
         active: Ui.powerMenuLoaded
         PowerMenu {}
+    }
+    LazyLoader {
+        active: Ui.overviewLoaded
+        Overview {}
+    }
+    LazyLoader {
+        active: Session.lockLoaded
+        Lock {}
     }
     LazyLoader {
         active: Ui.osdLoaded
@@ -51,6 +63,36 @@ ShellRoot {
         }
     }
 
+    // The adapter has no native app switcher: the shell draws the overview.
+    Connections {
+        target: Compositor
+        function onAppSwitcherRequested(): void {
+            Ui.toggleOverview();
+        }
+    }
+
+    // Locking dismisses every panel and the keyboard; nothing may be left
+    // open underneath for the moment the lock goes away.
+    Connections {
+        target: Session
+        function onLockedChanged(): void {
+            if (Session.locked) {
+                Ui.closeAll();
+                Keyboard.hide();
+            }
+        }
+    }
+
+    // Lock after a period without input (ext-idle-notify, event driven).
+    IdleMonitor {
+        enabled: Session.idleSeconds > 0
+        timeout: Math.max(1, Session.idleSeconds)
+        onIsIdleChanged: {
+            if (isIdle)
+                Session.idle();
+        }
+    }
+
     // `quickshell ipc -p shell call flo <function>`: for compositor key
     // bindings (volume keys, power key) and for testing.
     IpcHandler {
@@ -61,8 +103,28 @@ ShellRoot {
         function quickSettings(): void { Ui.toggleQuickSettings(); }
         function powerMenu(): void { Ui.openPowerMenu(); }
         function closeAll(): void { Ui.closeAll(); }
-        function back(): void { Compositor.goBack(); }
+        function back(): void { Ui.back(); }
         function appSwitcher(): void { Compositor.showAppSwitcher(); }
+        function overview(): void { Compositor.showAppSwitcher(); }
+        function lock(): void { Session.lock(); }
+        // Power key: short press on release, long press while held.
+        function powerKey(): void { Session.powerKey(); }
+        function powerKeyLong(): void {
+            if (Session.powerKeyLong())
+                Ui.openPowerMenu();
+        }
+        // Development only, inert without FLO_DEV_INPUT=1.
+        function authInput(text: string): void { Ui.devInput(text === "ENTER" ? "\n" : text); }
+        function rotate(degrees: int): void { RotationLock.set(degrees); }
+        function rotateNext(): void { RotationLock.next(); }
+        function keyboard(action: string): void {
+            if (action === "on")
+                Keyboard.show();
+            else if (action === "off")
+                Keyboard.hide();
+            else
+                Keyboard.toggle();
+        }
         function workspace(id: int): void { Compositor.focusWorkspace(id); }
         function volume(deltaPercent: int): void { Audio.step(deltaPercent / 100); }
         function mute(): void { Audio.toggleMute(); }
@@ -77,6 +139,14 @@ ShellRoot {
                 launcher: Ui.launcherOpen,
                 quickSettings: Ui.quickSettingsOpen,
                 powerMenu: Ui.powerMenuOpen,
+                overview: Ui.overviewOpen,
+                locked: Session.locked,
+                displayOn: Session.displayOn,
+                rotation: RotationLock.degrees,
+                rotationSupported: RotationLock.supported,
+                keyboardAvailable: Keyboard.available,
+                keyboard: Keyboard.visible,
+                lang: I18n.lang,
                 notifications: Notifications.count,
                 popups: Notifications.popups.length,
                 volume: Math.round(Audio.volume * 100),
