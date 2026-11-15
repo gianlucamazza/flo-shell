@@ -7,7 +7,12 @@ import qs.components
 
 // Bottom home bar: the device has no hardware home/back keys. A thin opaque
 // bar reserves Theme.homeBarHeight; the surface reaches further up with an
-// invisible strip so that the tap / swipe-up target is Theme.edgeTouch tall.
+// invisible strip so that the touch target is Theme.edgeTouch tall.
+//
+//   tap             home (dismiss what is open, else launcher)
+//   swipe up        launcher
+//   long swipe up   overview of the open windows
+//   right corner    on-screen keyboard toggle (when a keyboard is installed)
 PanelWindow {
     id: win
 
@@ -36,12 +41,33 @@ PanelWindow {
             radius: 2.5
             color: area.pressed ? Theme.accent : Theme.textDim
         }
+        Icon {
+            visible: Keyboard.available
+            anchors.verticalCenter: parent.verticalCenter
+            x: parent.width - keyboardButton.width / 2 - width / 2
+            name: "keyboard"
+            size: 18
+            color: keyboardButton.pressed || Keyboard.visible ? Theme.accent : Theme.textDim
+        }
     }
 
     EdgeArea {
         id: area
         anchors.fill: parent
+        longThreshold: Theme.longSwipeThreshold
         onTapped: Ui.home()
         onSwipedUp: Ui.openLauncher()
+        onSwipedUpLong: Compositor.showAppSwitcher()
+    }
+
+    // Keyboard toggle. The strip is only Theme.edgeTouch tall, so the target
+    // is made wider than a regular one to compensate.
+    MouseArea {
+        id: keyboardButton
+        visible: Keyboard.available
+        anchors.right: parent.right
+        width: Theme.touch + Theme.spaceL
+        height: parent.height
+        onClicked: Keyboard.toggle()
     }
 }

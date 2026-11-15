@@ -15,6 +15,9 @@ PanelWindow {
     readonly property bool open: Ui.launcherOpen
     property real progress: open ? 1 : 0
     readonly property var results: Apps.search(search.text)
+    // True when the search field asked for the on-screen keyboard, so that
+    // closing the launcher only hides a keyboard it raised itself.
+    property bool raisedKeyboard: false
 
     Behavior on progress {
         NumberAnimation {
@@ -32,6 +35,9 @@ PanelWindow {
         if (!open) {
             search.text = "";
             search.focus = false;
+            if (win.raisedKeyboard)
+                Keyboard.hide();
+            win.raisedKeyboard = false;
         }
     }
 
@@ -131,12 +137,12 @@ PanelWindow {
         Label {
             visible: win.results.length === 0
             anchors.centerIn: grid
-            text: "Nessuna app trovata"
+            text: I18n.t("launcher.empty")
             color: Theme.textDim
         }
 
-        // Open windows: minimal switch/close until the multitasking view
-        // (phase 3). Goes through the Compositor adapter only.
+        // Open windows: quick switch/close without leaving the launcher (the
+        // full view is overview/Overview.qml). Compositor adapter only.
         ListView {
             id: strip
 
@@ -206,7 +212,7 @@ PanelWindow {
                 visible: search.text === "" && search.preeditText === ""
                 anchors.left: search.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Cerca app"
+                text: I18n.t("launcher.search")
                 color: Theme.textDim
             }
             TextInput {
@@ -228,12 +234,20 @@ PanelWindow {
                 }
                 Keys.onEscapePressed: Ui.launcherOpen = false
             }
-            // The whole pill focuses the field (no auto-focus on open: it
-            // would raise the on-screen keyboard every time).
+            // The whole pill focuses the field and raises the on-screen
+            // keyboard (no auto-focus on open: the keyboard would come up
+            // every time). The keyboard's exclusive zone shrinks this
+            // surface, which moves the field above the keys.
             MouseArea {
                 anchors.fill: parent
                 anchors.rightMargin: clearButton.width
-                onClicked: search.forceActiveFocus()
+                onClicked: {
+                    search.forceActiveFocus();
+                    if (Keyboard.available && !Keyboard.visible) {
+                        Keyboard.show();
+                        win.raisedKeyboard = true;
+                    }
+                }
             }
             IconButton {
                 id: clearButton

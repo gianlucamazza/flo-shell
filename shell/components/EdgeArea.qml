@@ -20,6 +20,11 @@ MouseArea {
 
     signal tapped
     signal swipedUp
+    // Reported instead of swipedUp when the finger travelled further than
+    // longThreshold (0 disables). The pointer is grabbed while pressed, so
+    // the travel continues outside the strip.
+    signal swipedUpLong
+    property real longThreshold: 0
     signal swipedDown
 
     function direction(y: real): int {
@@ -29,8 +34,10 @@ MouseArea {
             return 1;
         return 0;
     }
-    function report(dir: int): void {
-        if (dir < 0)
+    function report(dir: int, y: real): void {
+        if (dir < 0 && longThreshold > 0 && startY - y > longThreshold)
+            root.swipedUpLong();
+        else if (dir < 0)
             root.swipedUp();
         else
             root.swipedDown();
@@ -44,9 +51,10 @@ MouseArea {
         if (!eager || !pressed || fired)
             return;
         const dir = direction(mouse.y);
-        if (dir !== 0) {
+        // An eager upward swipe would fire before it can become a long one.
+        if (dir !== 0 && !(dir < 0 && longThreshold > 0)) {
             fired = true;
-            report(dir);
+            report(dir, mouse.y);
         }
     }
     onReleased: mouse => {
@@ -54,7 +62,7 @@ MouseArea {
             return;
         const dir = direction(mouse.y);
         if (dir !== 0)
-            report(dir);
+            report(dir, mouse.y);
         else
             root.tapped();
     }
