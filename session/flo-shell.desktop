@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=flo-shell
+Comment=Touch shell for the Nexus 7 2013 (Hyprland + Quickshell)
+Exec=flo-session
+TryExec=flo-session
+Type=Application
+DesktopNames=Hyprland

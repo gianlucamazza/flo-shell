@@ -1,0 +1,52 @@
+#!/bin/sh
+# flo-shell launcher.
+#
+#   flo-shell run              start the shell; restart it if it crashes
+#   flo-shell greeter          start the greetd greeter
+#   flo-shell msg FN [ARG...]  call an IPC function of the running shell,
+#                              e.g. `flo-shell msg lock`, `flo-shell msg volume -5`
+#   flo-shell path             print the installed data directory
+set -u
+
+data=${FLO_SHELL_DATA:-@DATADIR@}
+
+case "${1:-run}" in
+run)
+    # A crashed shell must come back (and re-take the session lock, see
+    # services/Session.qml), but not spin forever on a broken install:
+    # give up after 5 failures in a row that each lasted under 10 s.
+    quick=0
+    while :; do
+        start=$(date +%s)
+        quickshell -p "$data/shell"
+        status=$?
+        [ "$status" -eq 0 ] && exit 0
+        # No compositor left to draw on: the session is ending.
+        [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "${XDG_RUNTIME_DIR:-/tmp}/$WAYLAND_DISPLAY" ] || exit "$status"
+        if [ $(($(date +%s) - start)) -lt 10 ]; then
+            quick=$((quick + 1))
+        else
+            quick=0
+        fi
+        if [ "$quick" -ge 5 ]; then
+            echo "flo-shell: quickshell keeps failing (status $status), giving up" >&2
+            exit "$status"
+        fi
+        sleep 1
+    done
+    ;;
+greeter)
+    exec quickshell -p "$data/greeter"
+    ;;
+msg)
+    shift
+    exec quickshell ipc -p "$data/shell" call flo "$@"
+    ;;
+path)
+    echo "$data"
+    ;;
+*)
+    echo "usage: flo-shell [run|greeter|msg FN [ARG...]|path]" >&2
+    exit 2
+    ;;
+esac

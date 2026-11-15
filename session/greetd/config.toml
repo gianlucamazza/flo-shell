@@ -1,0 +1,19 @@
+# Example /etc/greetd/config.toml for the flo-shell greeter.
+#
+# greetd starts a small Hyprland as the greeter user; it runs
+# `flo-shell greeter` and exits once the greeter has told greetd which
+# session to start. The greeter user needs access to the display and the
+# touch screen (on Alpine: member of the video and input groups, with seatd
+# or elogind running).
+#
+# Environment for the greeter can be set in front of the command:
+#   FLO_GREETER_USER=user        user selected at start
+#   FLO_GREETER_SESSION=...      session command when no *.desktop matches
+#                                (default: flo-session)
+
+[terminal]
+vt = 1
+
+[default_session]
+command = "Hyprland -c /usr/share/flo-shell/session/greeter-hyprland.conf"
+user = "greetd"

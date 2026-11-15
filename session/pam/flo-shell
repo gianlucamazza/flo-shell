@@ -1,0 +1,7 @@
+#%PAM-1.0
+# PAM service used by the flo-shell lock screen (PamContext, config
+# "flo-shell"). Alpine / postmarketOS layout: base-auth and base-account
+# come with linux-pam. On other distributions include their common auth
+# stack instead (e.g. "system-auth" on Arch, "common-auth" on Debian).
+auth     include base-auth
+account  include base-account

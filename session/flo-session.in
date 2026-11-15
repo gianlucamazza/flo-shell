@@ -1,0 +1,36 @@
+#!/bin/sh
+# flo-shell Wayland session: Hyprland with the tablet configuration, which
+# starts the shell (exec-once = flo-shell run). Started by greetd through
+# the flo-shell greeter or any other greeter (see flo-shell.desktop).
+#
+#   FLO_HYPRLAND_CONF   configuration file to use instead of the defaults
+set -u
+
+data=${FLO_SHELL_DATA:-@DATADIR@}
+
+conf=${FLO_HYPRLAND_CONF:-}
+if [ -z "$conf" ]; then
+    conf="${XDG_CONFIG_HOME:-$HOME/.config}/flo-shell/hyprland.conf"
+    [ -f "$conf" ] || conf="$data/session/hyprland.conf"
+fi
+
+export XDG_SESSION_TYPE=wayland
+export XDG_SESSION_DESKTOP=flo-shell
+export XDG_CURRENT_DESKTOP=Hyprland
+
+set -- Hyprland -c "$conf"
+
+# The shell handles the power key (lock, power menu): keep logind from
+# powering off on it for as long as the session lives.
+if command -v elogind-inhibit > /dev/null 2>&1; then
+    set -- elogind-inhibit --what=handle-power-key --who=flo-shell --why="power key handled by the shell" --mode=block "$@"
+elif command -v systemd-inhibit > /dev/null 2>&1; then
+    set -- systemd-inhibit --what=handle-power-key --who=flo-shell --why="power key handled by the shell" --mode=block "$@"
+fi
+
+# A session bus is needed for notifications, portals and the shell's services.
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session > /dev/null 2>&1; then
+    set -- dbus-run-session -- "$@"
+fi
+
+exec "$@"
