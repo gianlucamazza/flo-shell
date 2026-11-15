@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs
 import qs.services
+import qs.components
 
 // Bottom home bar: the device has no hardware home/back keys. A thin opaque
 // bar reserves Theme.homeBarHeight; the surface reaches further up with an
@@ -37,26 +38,10 @@ PanelWindow {
         }
     }
 
-    MouseArea {
+    EdgeArea {
         id: area
-
-        property real startY: 0
-        property bool fired: false
-
         anchors.fill: parent
-        onPressed: mouse => {
-            startY = mouse.y;
-            fired = false;
-        }
-        onPositionChanged: mouse => {
-            if (!fired && startY - mouse.y > Theme.swipeThreshold) {
-                fired = true;
-                Ui.openLauncher();
-            }
-        }
-        onReleased: {
-            if (!fired)
-                Ui.home();
-        }
+        onTapped: Ui.home()
+        onSwipedUp: Ui.openLauncher()
     }
 }

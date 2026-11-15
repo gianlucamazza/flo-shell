@@ -118,29 +118,10 @@ PanelWindow {
     // Tap toggles the quick settings; a downward drag opens them, an upward
     // one closes them. The gesture is a discrete trigger, it does not track
     // the finger (finger-following motion belongs to the compositor).
-    MouseArea {
-        property real startY: 0
-        property bool fired: false
-
+    EdgeArea {
         anchors.fill: parent
-        onPressed: mouse => {
-            startY = mouse.y;
-            fired = false;
-        }
-        onPositionChanged: mouse => {
-            if (fired)
-                return;
-            if (mouse.y - startY > Theme.swipeThreshold) {
-                fired = true;
-                Ui.openQuickSettings();
-            } else if (startY - mouse.y > Theme.swipeThreshold) {
-                fired = true;
-                Ui.quickSettingsOpen = false;
-            }
-        }
-        onReleased: {
-            if (!fired)
-                Ui.toggleQuickSettings();
-        }
+        onTapped: Ui.toggleQuickSettings()
+        onSwipedDown: Ui.openQuickSettings()
+        onSwipedUp: Ui.quickSettingsOpen = false
     }
 }
