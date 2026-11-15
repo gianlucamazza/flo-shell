@@ -1,16 +1,31 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 
 // Hyprland backend: window and workspace state from the Hyprland IPC socket.
+//
+// The tablet runs a classic (hyprlang) configuration; a development machine
+// may run a Lua one, where dispatchers and keywords are Lua expressions.
+// Both forms are kept side by side and chosen with Hyprland.usingLua.
 QtObject {
+    id: root
+
     readonly property var windows: Hyprland.toplevels.values
     readonly property var activeWindow: Hyprland.activeToplevel
     readonly property var workspaces: Hyprland.workspaces.values.map(ws => ({ id: ws.id, name: ws.name, active: ws.focused }))
     readonly property int activeWorkspaceId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
     readonly property bool supportsWorkspaces: true
-    readonly property bool supportsBack: false
+    readonly property bool lua: Hyprland.usingLua === true
+
+    // The overview is drawn by the shell (see Compositor.showAppSwitcher).
     readonly property bool supportsAppSwitch: false
+    // "Back" is a synthetic XF86Back key press: classic configuration only.
+    readonly property bool supportsBack: !lua
+    readonly property bool supportsDisplayPower: !lua
+    readonly property bool supportsRotation: true
+    // hyprland-toplevel-export-v1, used by ScreencopyView.
+    readonly property bool supportsThumbnails: true
 
     function title(w: var): string {
         return w.title;
@@ -20,10 +35,11 @@ QtObject {
             return w.wayland.appId;
         return w.lastIpcObject["class"] || "";
     }
-    // Recent Hyprland can run with a Lua configuration, in which case
-    // dispatchers are Lua expressions instead of the classic "name args".
+    function captureSource(w: var): var {
+        return w.wayland;
+    }
     function _dispatch(classic: string, lua: string): void {
-        Hyprland.dispatch(Hyprland.usingLua === true ? lua : classic);
+        Hyprland.dispatch(root.lua ? lua : classic);
     }
 
     function focus(w: var): void {
@@ -40,5 +56,70 @@ QtObject {
     }
     function focusWorkspace(id: int): void {
         _dispatch("workspace " + id, "hl.dsp.focus({ workspace = " + id + " })");
+    }
+
+    function goBack(): void {
+        Hyprland.dispatch("sendshortcut , XF86Back, activewindow");
+    }
+    function setDisplayPower(on: bool): void {
+        Hyprland.dispatch("dpms " + (on ? "on" : "off"));
+    }
+
+    // ---- Rotation ---------------------------------------------------------
+    // Monitor state as reported by `hyprctl -j monitors`, fetched once at
+    // start and again after every change. (The Hyprland module's own
+    // monitor objects came back empty for the headless output used in
+    // development, so the adapter asks for itself.)
+    property var _monitors: []
+
+    function _monitor(screen: var): var {
+        if (!screen)
+            return null;
+        for (let i = 0; i < _monitors.length; i++) {
+            if (_monitors[i].name === screen.name)
+                return _monitors[i];
+        }
+        return null;
+    }
+    // wl_output transform of a screen: 0, 1 (90), 2 (180), 3 (270).
+    function transformOf(screen: var): int {
+        const m = _monitor(screen);
+        return m ? m.transform : 0;
+    }
+    // Re-applies the monitor rule with the same mode, position and scale and
+    // a new transform, and rotates touch input to match.
+    function setTransform(screen: var, t: int): void {
+        const m = _monitor(screen);
+        if (!m) {
+            console.warn("flo-compositor: no monitor data for the shell screen yet");
+            _query.running = true;
+            return;
+        }
+        const mode = m.width + "x" + m.height + "@" + Number(m.refreshRate).toFixed(2);
+        const pos = m.x + "x" + m.y;
+        if (root.lua)
+            _ctl.command = ["hyprctl", "eval", "hl.monitor({ output = \"" + m.name + "\", mode = \"" + mode + "\", position = \"" + pos + "\", scale = " + m.scale + ", transform = " + t + " })"
+                + " hl.config({ input = { touchdevice = { transform = " + t + " } } })"];
+        else
+            _ctl.command = ["hyprctl", "--batch", "keyword monitor " + m.name + "," + mode + "," + pos + "," + m.scale + ",transform," + t
+                + " ; keyword input:touchdevice:transform " + t];
+        _ctl.running = true;
+    }
+
+    property Process _ctl: Process {
+        onExited: root._query.running = true
+    }
+    property Process _query: Process {
+        command: ["hyprctl", "-j", "monitors"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root._monitors = JSON.parse(text);
+                } catch (e) {
+                    console.warn("flo-compositor: cannot parse hyprctl monitors:", e);
+                }
+            }
+        }
     }
 }

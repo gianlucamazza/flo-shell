@@ -14,6 +14,11 @@ import Quickshell
 //   function title(w): string        function appId(w): string
 //   function focus(w)                function close(w)
 //   function focusWorkspace(id)
+//   property bool supportsBack / supportsAppSwitch / supportsRotation /
+//                 supportsDisplayPower / supportsThumbnails
+//   function goBack()                function setDisplayPower(on)
+//   function transformOf(screen): int   function setTransform(screen, t)
+//   function captureSource(w): var
 //
 // Everything else in the shell uses this singleton and standard protocols.
 Singleton {
@@ -41,25 +46,49 @@ Singleton {
     function closeActiveWindow(): void { closeWindow(activeWindow); }
     function focusWorkspace(id: int): void { if (backend) backend.focusWorkspace(id); }
 
-    // ---- Gesture hooks (HOOK, not implemented) ----------------------------
-    // Finger-following gestures (back, app switch) belong to the compositor
-    // (plan decision 4). When a backend gains them it sets these flags and
-    // implements the functions; the shell only calls them from discrete
-    // triggers (buttons, IPC).
-    readonly property bool supportsBack: backend ? backend.supportsBack === true : false
+    // ---- Navigation ------------------------------------------------------
+    // Finger-following gestures belong to the compositor (plan decision 4);
+    // the shell only reacts to discrete triggers (buttons, IPC, key binds).
+
+    // Asks for the multitasking overview. A backend with a native switcher
+    // sets supportsAppSwitch and implements showAppSwitcher(); otherwise the
+    // request is forwarded to the shell's own overview (see shell.qml).
+    signal appSwitcherRequested
     readonly property bool supportsAppSwitch: backend ? backend.supportsAppSwitch === true : false
-    function goBack(): void {
-        if (supportsBack)
-            backend.goBack();
-        else
-            console.info("flo-compositor: goBack() hook not implemented by backend", backendName);
-    }
     function showAppSwitcher(): void {
         if (supportsAppSwitch)
             backend.showAppSwitcher();
         else
-            console.info("flo-compositor: showAppSwitcher() hook not implemented by backend", backendName);
+            root.appSwitcherRequested();
     }
+
+    // Best effort: sends the XF86Back key to the focused window. Whether
+    // anything happens depends on the application (see ARCHITECTURE.md).
+    readonly property bool supportsBack: backend ? backend.supportsBack === true : false
+    function goBack(): void {
+        if (supportsBack && activeWindow)
+            backend.goBack();
+        else
+            console.info("flo-compositor: goBack() has nothing to act on (backend " + backendName + ")");
+    }
+
+    // ---- Output ----------------------------------------------------------
+    readonly property bool supportsRotation: backend ? backend.supportsRotation === true : false
+    readonly property bool supportsDisplayPower: backend ? backend.supportsDisplayPower === true : false
+    readonly property bool supportsThumbnails: backend ? backend.supportsThumbnails === true : false
+
+    // wl_output transform (0..3 = 0, 90, 180, 270 degrees) of a screen.
+    function screenTransform(screen: var): int { return backend ? backend.transformOf(screen) : 0; }
+    function setScreenTransform(screen: var, t: int): void {
+        if (supportsRotation)
+            backend.setTransform(screen, t);
+    }
+    function setDisplayPower(on: bool): void {
+        if (supportsDisplayPower)
+            backend.setDisplayPower(on);
+    }
+    // Object accepted by ScreencopyView.captureSource, or null.
+    function windowCaptureSource(w: var): var { return backend && w && supportsThumbnails ? backend.captureSource(w) : null; }
 
     Loader {
         id: loader

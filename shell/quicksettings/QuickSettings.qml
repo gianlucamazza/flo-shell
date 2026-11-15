@@ -96,7 +96,7 @@ PanelWindow {
             Label {
                 x: content.pad
                 anchors.verticalCenter: parent.verticalCenter
-                text: Notifications.count > 0 ? "Notifiche (" + Notifications.count + ")" : "Notifiche"
+                text: Notifications.count > 0 ? I18n.t("qs.notificationsCount", Notifications.count) : I18n.t("qs.notifications")
                 font.weight: Font.DemiBold
             }
             Pressable {
@@ -120,7 +120,7 @@ PanelWindow {
                     }
                     Label {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Cancella tutto"
+                        text: I18n.t("qs.clearAll")
                         color: Theme.textDim
                     }
                 }
@@ -151,7 +151,7 @@ PanelWindow {
         Label {
             visible: Notifications.count === 0
             anchors.centerIn: history
-            text: "Nessuna notifica"
+            text: I18n.t("qs.none")
             color: Theme.textDim
         }
 
@@ -179,7 +179,7 @@ PanelWindow {
                     compact: win.side
                     icon: Network.wifiEnabled ? "wifi" : "wifi-off"
                     label: "Wi-Fi"
-                    detail: !Network.wifiEnabled ? "Spento" : Network.active.kind === "wifi" ? (Network.active.name || "Connesso") : "Non connesso"
+                    detail: !Network.wifiEnabled ? I18n.t("qs.off") : Network.active.kind === "wifi" ? (Network.active.name || I18n.t("qs.connected")) : I18n.t("qs.notConnected")
                     active: Network.wifiEnabled
                     available: Network.available && Network.wifiHardwareEnabled
                     onTapped: Network.setWifiEnabled(!Network.wifiEnabled)
@@ -189,7 +189,7 @@ PanelWindow {
                     compact: win.side
                     icon: "bluetooth"
                     label: "Bluetooth"
-                    detail: !Bt.available ? "Non disponibile" : !Bt.enabled ? "Spento" : Bt.connectedCount > 0 ? "Connesso" : "Acceso"
+                    detail: !Bt.available ? I18n.t("qs.unavailable") : !Bt.enabled ? I18n.t("qs.off") : Bt.connectedCount > 0 ? I18n.t("qs.connected") : I18n.t("qs.on")
                     active: Bt.enabled
                     available: Bt.available
                     onTapped: Bt.setEnabled(!Bt.enabled)
@@ -197,18 +197,19 @@ PanelWindow {
                 ToggleTile {
                     width: tiles.tileWidth
                     compact: win.side
-                    icon: RotationLock.locked ? "rotate-lock" : "rotate"
-                    label: "Rotazione"
-                    detail: RotationLock.locked ? "Bloccata" : "Automatica"
-                    active: RotationLock.locked
-                    onTapped: RotationLock.toggle()
+                    // Manual rotation: the device has no usable sensor yet.
+                    icon: "rotate"
+                    label: I18n.t("qs.rotate")
+                    detail: I18n.t(RotationLock.landscape ? "qs.landscape" : "qs.portrait") + (RotationLock.degrees >= 180 ? " " + RotationLock.degrees + "°" : "")
+                    available: RotationLock.supported
+                    onTapped: RotationLock.next()
                 }
                 ToggleTile {
                     width: tiles.tileWidth
                     compact: win.side
                     icon: "power"
-                    label: "Alimentazione"
-                    detail: Battery.available ? Battery.percent + "%" + (Battery.charging ? " in carica" : "") : ""
+                    label: I18n.t("qs.power")
+                    detail: Battery.available ? Battery.percent + "%" + (Battery.charging ? I18n.t("qs.chargingShort") : "") : ""
                     onTapped: Ui.openPowerMenu()
                 }
             }
