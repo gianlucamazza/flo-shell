@@ -22,4 +22,6 @@ sessiond = executable('flo-sessiond',
   install_dir: get_option('sbindir'),
 )
 
+floctl = executable('floctl', 'src/floctl.c', install: true)
+
 subdir('tests')
