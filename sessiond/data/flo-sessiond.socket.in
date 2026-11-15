@@ -1,0 +1,12 @@
+[Unit]
+Description=flo-shell session policy daemon control socket
+
+[Socket]
+ListenStream=/run/flo-sessiond.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=@socket_group@
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

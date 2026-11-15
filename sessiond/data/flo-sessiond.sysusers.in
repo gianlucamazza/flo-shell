@@ -1,0 +1,2 @@
+# Members of this group may talk to flo-sessiond.
+g @socket_group@ -

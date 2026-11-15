@@ -1,0 +1,6 @@
+option('systemdsystemunitdir', type: 'string', value: '',
+  description: 'systemd system unit directory (default: <prefix>/lib/systemd/system)')
+option('socket_group', type: 'string', value: 'flo-session',
+  description: 'group allowed to connect to the control socket')
+option('install_config', type: 'boolean', value: true,
+  description: 'install the commented default /etc/flo-sessiond.conf')

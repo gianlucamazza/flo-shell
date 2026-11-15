@@ -1,0 +1,76 @@
+[Unit]
+Description=flo-shell session policy daemon (touch boost, background app freezer)
+Requires=flo-sessiond.socket
+After=flo-sessiond.socket
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=@sbindir@/flo-sessiond
+Restart=always
+RestartSec=1
+# React to a touch ahead of ordinary work, never be the OOM victim.
+Nice=-10
+OOMScoreAdjust=-900
+
+# /run/flo-sessiond/state survives a crash so the restart can undo a boost.
+RuntimeDirectory=flo-sessiond
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+
+# --- privileges -----------------------------------------------------------
+# Root is needed only as the *owner* of the cpufreq attributes and of the
+# input nodes; no capability is involved in those writes. The one capability
+# kept is CAP_DAC_OVERRIDE, because cgroup.freeze below user@UID.service is
+# owned by the user, not by root. Without the freezer (freezer_enabled = no)
+# the set can be emptied: CapabilityBoundingSet=
+User=root
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+AmbientCapabilities=
+NoNewPrivileges=yes
+
+# --- file system ----------------------------------------------------------
+# Everything read-only except the two places the daemon must write.
+# ProtectKernelTunables makes all of /sys read-only (cgroupfs included);
+# ReadWritePaths re-opens exactly the cpufreq policies and the user slice.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=no
+ReadWritePaths=/sys/devices/system/cpu/cpufreq /sys/fs/cgroup/user.slice
+ProtectProc=invisible
+ProcSubset=pid
+UMask=0077
+
+# --- devices --------------------------------------------------------------
+# PrivateDevices would hide /dev/input: allow input character devices only,
+# read-only.
+DevicePolicy=closed
+DeviceAllow=char-input r
+
+# --- everything else ------------------------------------------------------
+PrivateNetwork=yes
+IPAddressDeny=any
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+PrivateIPC=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+MemoryMax=16M
+TasksMax=4
+LimitNOFILE=64
+
+[Install]
+WantedBy=multi-user.target
