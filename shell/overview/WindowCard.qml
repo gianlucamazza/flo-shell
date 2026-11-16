@@ -17,6 +17,12 @@ Item {
     id: root
 
     required property var window
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: title || appId
+    Accessible.onPressAction: root.activated()
+    Keys.onReturnPressed: root.activated()
+    Keys.onSpacePressed: root.activated()
     // True while the overview is on screen: captures are taken on opening.
     property bool active: false
 
@@ -151,6 +157,7 @@ Item {
             width: Theme.touch
             height: root.headerHeight
             icon: "close"
+            accessibleName: I18n.t("common.close") + ": " + root.title
             iconColor: Theme.textDim
             onTapped: root.dismiss()
         }

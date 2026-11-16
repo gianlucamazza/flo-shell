@@ -221,6 +221,8 @@ PanelWindow {
 
                         width: chipRow.width + 2 * Theme.spaceL
                         height: Theme.touch
+                        accessibleName: modelData
+                        Accessible.selected: selected
                         background: selected ? Theme.accent : Theme.surfaceAlt
                         pressedColor: selected ? Qt.darker(Theme.accent, 1.2) : Theme.pressed
                         onTapped: win.selectUser(modelData)
@@ -263,6 +265,8 @@ PanelWindow {
 
                         width: sessionLabel.width + 2 * Theme.spaceL
                         height: Theme.touchMin
+                        accessibleName: modelData.name
+                        Accessible.selected: selected
                         background: Theme.surface
                         onTapped: win.sessionIndex = index
 

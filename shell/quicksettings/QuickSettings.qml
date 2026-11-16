@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Notifications
@@ -16,7 +17,7 @@ PanelWindow {
     id: win
 
     readonly property bool open: Ui.quickSettingsOpen
-    readonly property bool side: Device.landscape
+    readonly property bool side: Device.width >= 840
     property real progress: open ? 1 : 0
 
     Behavior on progress {
@@ -32,15 +33,17 @@ PanelWindow {
         right: true
         left: !win.side
     }
-    implicitWidth: Theme.sideSheetWidth
+    implicitWidth: Math.min(Theme.sideSheetWidth, Device.width - 2 * Theme.spaceL)
     exclusionMode: ExclusionMode.Normal
     visible: open || progress > 0
     color: Theme.surface
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "flo-quicksettings"
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     Item {
         id: content
+        Keys.onEscapePressed: Ui.back()
 
         readonly property int pad: Theme.spaceL
 
@@ -81,6 +84,7 @@ PanelWindow {
                 anchors.rightMargin: Theme.spaceXs
                 anchors.verticalCenter: parent.verticalCenter
                 icon: "close"
+                accessibleName: I18n.t("common.close")
                 onTapped: Ui.quickSettingsOpen = false
             }
         }
@@ -104,6 +108,7 @@ PanelWindow {
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.spaceXs
                 width: clearRow.width + 2 * Theme.spaceL
+                accessibleName: I18n.t("qs.clearAll")
                 height: parent.height
                 onTapped: Notifications.clearAll()
 
@@ -138,6 +143,7 @@ PanelWindow {
             spacing: Theme.spaceS
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            Controls.ScrollIndicator.vertical: Controls.ScrollIndicator {}
             // Newest first.
             model: Notifications.history.slice().reverse()
 
@@ -156,31 +162,66 @@ PanelWindow {
         }
 
         // ---- Controls (thumb zone) --------------------------------------
-        Column {
+        Flickable {
             id: controls
 
             x: content.pad
             width: parent.width - 2 * content.pad
             anchors.bottom: parent.bottom
             anchors.bottomMargin: content.pad
-            spacing: Theme.spaceS
-
+            clip: true
+            contentHeight: controlBody.height
+            height: Math.min(contentHeight, Math.max(Theme.touch * 2, content.height - header.height - historyHeader.height - Theme.touch - content.pad))
+            boundsBehavior: Flickable.StopAtBounds
+            Controls.ScrollIndicator.vertical: Controls.ScrollIndicator {}
+            Accessible.role: Accessible.Pane
+            Accessible.name: I18n.t("qs.controls")
+            Accessible.onScrollDownAction: contentY = Math.min(contentHeight - height, contentY + height * 0.7)
+            Accessible.onScrollUpAction: contentY = Math.max(0, contentY - height * 0.7)
+            Column {
+                id: controlBody
+                width: controls.width
+                spacing: Theme.spaceS
+                Row {
+                    width: parent.width
+                    spacing: Theme.spaceS
+                    Pressable {
+                        width: (parent.width - parent.spacing) / 2
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        accessibleName: textLabel.text
+                        onTapped: UiPreferences.nextTextScale()
+                        Label { id: textLabel; anchors.centerIn: parent; text: I18n.t("qs.textSize") + " " + Math.round(Theme.textScale * 100) + "%"; font.pixelSize: Theme.fontSmall }
+                    }
+                    Pressable {
+                        width: (parent.width - parent.spacing) / 2
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        accessibleName: motionLabel.text
+                        Accessible.checkable: true
+                        Accessible.checked: Theme.reducedMotion
+                        Accessible.onToggleAction: UiPreferences.toggleMotion()
+                        onTapped: UiPreferences.toggleMotion()
+                        Label { id: motionLabel; anchors.centerIn: parent; text: I18n.t(Theme.reducedMotion ? "qs.motionReduced" : "qs.motionFull"); font.pixelSize: Theme.fontSmall }
+                    }
+                }
             Grid {
                 id: tiles
 
                 readonly property real tileWidth: Math.floor((width - (columns - 1) * spacing) / columns)
 
                 width: parent.width
-                columns: win.side ? 4 : 2
+                columns: width < 300 * Theme.textScale ? 1 : 2
                 spacing: Theme.spaceS
 
                 ToggleTile {
                     width: tiles.tileWidth
-                    compact: win.side
+                    compact: false
                     icon: Network.wifiEnabled ? "wifi" : "wifi-off"
                     label: "Wi-Fi"
                     detail: !Network.wifiEnabled ? I18n.t("qs.off") : Network.active.kind === "wifi" ? (Network.active.name || I18n.t("qs.connected")) : I18n.t("qs.notConnected")
                     active: Network.wifiEnabled
+                    checkable: true
                     available: Network.available && Network.wifiHardwareEnabled
                     onTapped: Network.setWifiEnabled(!Network.wifiEnabled)
                 }
@@ -189,17 +230,18 @@ PanelWindow {
                 ToggleTile {
                     visible: Bt.available
                     width: tiles.tileWidth
-                    compact: win.side
+                    compact: false
                     icon: "bluetooth"
                     label: "Bluetooth"
                     detail: !Bt.available ? I18n.t("qs.unavailable") : !Bt.enabled ? I18n.t("qs.off") : Bt.connectedCount > 0 ? I18n.t("qs.connected") : I18n.t("qs.on")
                     active: Bt.enabled
+                    checkable: true
                     available: Bt.available
                     onTapped: Bt.setEnabled(!Bt.enabled)
                 }
                 ToggleTile {
                     width: tiles.tileWidth
-                    compact: win.side
+                    compact: false
                     // Manual rotation: the device has no usable sensor yet.
                     icon: "rotate"
                     label: I18n.t("qs.rotate")
@@ -209,7 +251,7 @@ PanelWindow {
                 }
                 ToggleTile {
                     width: tiles.tileWidth
-                    compact: win.side
+                    compact: false
                     icon: "power"
                     label: I18n.t("qs.power")
                     detail: Battery.available ? Battery.percent + "%" + (Battery.charging ? I18n.t("qs.chargingShort") : "") : ""
@@ -234,6 +276,7 @@ PanelWindow {
                 available: Audio.available
                 onMoved: v => Audio.setVolume(v)
                 onIconTapped: Audio.toggleMute()
+            }
             }
         }
     }

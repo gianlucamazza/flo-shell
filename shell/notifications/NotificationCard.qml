@@ -84,6 +84,7 @@ Item {
 
                     width: Math.max(Theme.touch + Theme.spaceXl, actionLabel.implicitWidth + 2 * Theme.spaceL)
                     height: Theme.touchMin
+                    accessibleName: modelData.text
                     background: Theme.bg
                     onTapped: {
                         modelData.invoke();

@@ -42,9 +42,11 @@ PanelWindow {
     color: Theme.bg
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "flo-overview"
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     Item {
         id: content
+        Keys.onEscapePressed: Ui.back()
 
         readonly property bool land: width > height
         readonly property int pad: Theme.spaceL
@@ -74,6 +76,7 @@ PanelWindow {
                 anchors.rightMargin: Theme.spaceXs
                 width: closeAllRow.width + 2 * Theme.spaceL
                 height: parent.height
+                accessibleName: I18n.t("overview.closeAll")
                 onTapped: {
                     const all = Compositor.windows.slice();
                     for (let i = 0; i < all.length; i++)
@@ -154,6 +157,9 @@ PanelWindow {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.spaceM
             text: I18n.t("overview.hint")
+            width: parent.width - 2 * content.pad
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
             color: Theme.textDim
             font.pixelSize: Theme.fontSmall
         }

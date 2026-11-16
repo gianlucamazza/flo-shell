@@ -173,6 +173,19 @@ Item {
                     id: cell
 
                     required property string modelData
+                    enabled: !root.busy
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData === "back" ? I18n.t("lock.delete") : modelData === "abc" ? I18n.t("lock.enterPassword") : modelData
+                    Accessible.onPressAction: activate()
+                    Keys.onReturnPressed: activate()
+                    Keys.onSpacePressed: activate()
+                    function activate(): void {
+                        if (root.busy) return;
+                        if (modelData === "back") root.backspace();
+                        else if (modelData === "abc") root.textMode = true;
+                        else root.add(modelData);
+                    }
 
                     width: Math.floor(pad.width / 3)
                     height: Theme.padKeyHeight + 6
@@ -182,8 +195,8 @@ Item {
                         anchors.margins: 3
                         radius: Theme.radius
                         color: area.pressed ? Theme.pressed : cell.modelData.length === 1 ? Theme.surfaceAlt : Theme.surface
-                        border.width: cell.modelData.length === 1 ? 0 : 1
-                        border.color: Theme.border
+                        border.width: cell.activeFocus ? 2 : cell.modelData.length === 1 ? 0 : 1
+                        border.color: cell.activeFocus ? Theme.accent : Theme.border
                     }
                     Icon {
                         visible: cell.modelData === "back"
@@ -200,14 +213,7 @@ Item {
                     MouseArea {
                         id: area
                         anchors.fill: parent
-                        onPressed: {
-                            if (cell.modelData === "back")
-                                root.backspace();
-                            else if (cell.modelData === "abc")
-                                root.textMode = true;
-                            else
-                                root.add(cell.modelData);
-                        }
+                        onClicked: cell.activate()
                     }
                 }
             }
@@ -220,6 +226,8 @@ Item {
             background: root.secret !== "" && !root.busy ? Theme.accent : Theme.surface
             pressedColor: Qt.darker(Theme.accent, 1.2)
             onTapped: root.submit()
+            accessibleName: I18n.t("lock.submit")
+            enabled: !root.busy && root.secret !== ""
 
             Icon {
                 anchors.centerIn: parent
@@ -242,6 +250,7 @@ Item {
             visible: root.textMode
             anchors.horizontalCenter: parent.horizontalCenter
             width: Theme.touch * 2
+            accessibleName: I18n.t("lock.enterPin")
             height: Theme.touchMin
             onTapped: {
                 root.textMode = false;

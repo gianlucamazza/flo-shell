@@ -261,6 +261,13 @@ Singleton {
         if (!policy)
             return;
         const seq = ++_fgSeq;
+        if (Ui.homeOpen && Ui.launchingName === "") {
+            root._sentForeground = "";
+            root._send("foreground -", ok => {
+                if (ok && seq === root._fgSeq) root.foregroundUnit = "";
+            });
+            return;
+        }
         unitOfWindow(Compositor.activeWindow, unit => {
             // A failed lookup keeps the previous foreground: sending "-"
             // would freeze the app that is still on screen.
@@ -279,6 +286,10 @@ Singleton {
         function onActiveWindowChanged(): void {
             root.updateForeground();
         }
+    }
+    Connections {
+        target: Ui
+        function onHomeOpenChanged(): void { root.updateForeground(); }
     }
     Connections {
         target: Session

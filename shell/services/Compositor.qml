@@ -43,7 +43,13 @@ Singleton {
 
     function windowTitle(w: var): string { return backend && w ? backend.title(w) : ""; }
     function windowAppId(w: var): string { return backend && w ? backend.appId(w) : ""; }
-    function focusWindow(w: var): void { if (backend && w) backend.focus(w); }
+    function focusWindow(w: var): void {
+        if (backend && w) {
+            Ui.showApplication();
+            backend.focus(w);
+            Sessiond.updateForeground();
+        }
+    }
     // Process id of a window's client, asynchronously: cb(pid), -1 if the
     // backend cannot tell.
     readonly property bool supportsWindowPid: backend ? backend.supportsPid === true : false

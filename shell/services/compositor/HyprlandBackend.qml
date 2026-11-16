@@ -149,7 +149,14 @@ QtObject {
     }
 
     property Process _ctl: Process {
-        onExited: root._query.running = true
+        // The IPC reply precedes the output commit; querying immediately
+        // can report the old transform indefinitely. Refresh once after it.
+        onExited: monitorRefresh.restart()
+    }
+    property Timer monitorRefresh: Timer {
+        interval: 100
+        repeat: false
+        onTriggered: root._query.running = true
     }
     property Process _query: Process {
         command: ["hyprctl", "-j", "monitors"]

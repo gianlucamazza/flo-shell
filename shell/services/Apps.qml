@@ -9,6 +9,17 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    signal launchRequested(string name)
+    readonly property var shortcuts: {
+        const wanted = (Quickshell.env("FLO_FAVORITES") || "org.gnome.Epiphany,org.gnome.Nautilus,org.gnome.Settings,org.gnome.TextEditor").split(",");
+        const found = [];
+        for (const id of wanted) {
+            const entry = all.find(e => e.id === id.trim());
+            if (entry && !found.includes(entry)) found.push(entry);
+        }
+        return found.length > 0 ? found : all.slice(0, 4);
+    }
+
     // Desktop entries that make no sense on the tablet: input-method setup
     // (the shell drives the on-screen keyboard) and parental controls.
     readonly property var hiddenIds: ["org.freedesktop.IBus.Setup", "org.freedesktop.MalcontentControl"]
@@ -133,11 +144,23 @@ Singleton {
     }
 
     function launch(entry: DesktopEntry): void {
+        if (!entry)
+            return;
+        // Reuse a running app before creating a scope. A single-instance
+        // app cannot answer a new activation while its old scope is frozen.
+        const id = entry.id.replace(/\.desktop$/, "").toLowerCase();
+        const existing = Compositor.windows.find(w => Compositor.windowAppId(w).replace(/\.desktop$/, "").toLowerCase() === id);
+        if (existing) {
+            Ui.closeAll();
+            Compositor.focusWindow(existing);
+            return;
+        }
         if (!_probed) {
             _queued.push(entry);
             return;
         }
         const unit = scoped ? scopeUnit(entry) : "";
+        root.launchRequested(entry.name);
         Sessiond.launching(unit === "" ? "" : unit + ".scope");
         const cmd = [];
         const src = entry.command;

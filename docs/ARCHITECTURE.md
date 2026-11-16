@@ -59,8 +59,8 @@ Superfici (tutte layer-shell, tutte opache tranne le due strisce tattili):
 
 | Superficie | Livello | Note |
 |---|---|---|
-| Barra di stato | top | 30 px visibili e riservati, superficie di 48 px |
-| Barra home | top | 20 px visibili e riservati, superficie di 48 px |
+| Barra di stato | top | 30 px visibili e riservati, superficie di almeno 56 px |
+| Barra home | top | 20 px visibili e riservati, superficie di almeno 56 px |
 | Launcher, impostazioni rapide | overlay | create al primo uso, poi tenute in memoria |
 | Menu di alimentazione | overlay | a tutto schermo, copre anche le barre |
 | Panoramica | overlay | tra le due barre, creata al primo uso |
@@ -509,3 +509,27 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
 - Freezer: nessuna inibizione automatica per audio o download (punto 7 di
   SESSIOND.md "Come lo usa la shell"): un lettore musicale in background
   viene congelato dopo la grazia; per ora `floctl inhibit`.
+
+## UI touch del tablet
+
+Home è una superficie opaca visibile all'accesso e su richiesta, sopra le
+finestre conservate e sotto i pannelli. Home è idempotente; Indietro chiude
+prima i pannelli e nelle app invia XF86Back (supporto dipendente dall'app).
+Le app già aperte vengono ritrovate tramite desktop id/app id prima di
+creare un nuovo scope. La home comunica a sessiond che nessuna app è in
+primo piano; riattivare una finestra ripristina la politica anche quando
+l'identità della finestra focalizzata non cambia.
+
+`UiPreferences` conserva scala del testo e movimento ridotto in
+`$XDG_STATE_HOME/flo-shell/ui.json` (fallback `~/.local/state`); il greeter
+non scrive preferenze. I controlli rapidi espongono 100/125/150% e movimento
+ridotto. `FLO_TEXT_SCALE` (1–1.5) e `FLO_REDUCED_MOTION=1` restano override
+per collaudi; `FLO_FAVORITES` sceglie gli id degli accessi rapidi. In sviluppo
+le preferenze restano nel runtime privato, separato dal profilo reale.
+
+I controlli comuni espongono ruolo, nome, stato e azioni accessibili, focus
+visibile e attivazione da tastiera. Gli slider hanno alternative −/+ al
+trascinamento. Il launcher calcola le colonne dalla larghezza disponibile
+e dalla scala del testo; i controlli rapidi diventano scorrevoli quando non
+entrano. Non viene modificata la scala globale 2× né il layout interno di
+app GTK esterne: l'adattamento delle loro barre laterali resta a quelle app.

@@ -33,11 +33,11 @@ portatile; **[solo IPC]** = la logica è stata eseguita, il gesto no.
    `flo-shell msg idleInhibit false` alla fine. Lo stato è in
    `flo-shell msg state` (`idleInhibited`).
 
-## 1. Avvio della sessione **[mai provato]**
+## 1. Avvio della sessione
 
 | Cosa fare | Cosa deve succedere |
 |---|---|
-| Avviare `flo-session` | Hyprland parte senza riquadro di errore di configurazione in alto; compaiono barra di stato e barra home; nessuna animazione |
+| Avviare `flo-session` | Hyprland parte senza riquadro di errore di configurazione in alto; compaiono home, barra di stato e navigazione inferiore |
 | `hyprctl monitors` | `DSI-1` a 1200×1920, scala 2 |
 | `hyprctl getoption general:layout` | `monocle`. Se Hyprland 0.54.3 non lo conosce (riquadro rosso di errore): mettere `layout = dwindle` in `~/.config/flo-shell/hyprland.conf` e segnalarlo; le finestre si affiancheranno invece di sovrapporsi |
 | Aprire due applicazioni dal launcher | ognuna occupa tutto lo spazio tra le barre; la seconda copre la prima |
@@ -50,7 +50,7 @@ portatile; **[solo IPC]** = la logica è stata eseguita, il gesto no.
 
 | Cosa fare | Cosa deve succedere |
 |---|---|
-| Tocco sulla barra home | si apre il launcher; secondo tocco: si chiude |
+| Tocco su Home, anche ripetuto | mostra sempre la home con accessi rapidi; le app aperte restano disponibili |
 | Scorrimento corto verso l'alto dalla barra home (1–2 cm) | launcher |
 | Scorrimento lungo verso l'alto (oltre 3 cm), poi rilascio | panoramica delle finestre. Se si apre sempre il launcher, il tocco non viene seguito fuori dalla striscia: annotarlo |
 | Scorrimento verso il basso dalla barra di stato | impostazioni rapide |
@@ -224,3 +224,28 @@ riavviare il servizio. `A=/sys/fs/cgroup/user.slice/user-10000.slice/user@10000.
   devono mostrare ridisposizioni durante l'animazione.
 - A schermo fermo `top` non deve mostrare `quickshell` né `wvkbd` in
   attività.
+
+## 14. Home, accessibilità e layout adattivo
+
+- In ambiente annidato: `FLO_NESTED_CONF=lua dev/run-nested.sh`, poi
+  `WAYLAND_DISPLAY=<socket indicato> python3 dev/test-ui.py`. Copre Home
+  stabile, pannelli/Indietro, testo al 150%, quattro rotazioni e una finestra
+  reale conservata e ripristinata dalla home.
+- Dal tablet, aprire Impostazioni, tornare Home e attendere il congelamento:
+  toccare nuovamente l'accesso rapido deve ripristinare la stessa finestra,
+  senza avviare uno scope nuovo verso un processo congelato.
+- Impostazioni rapide → Testo: 100 → 125 → 150 → 100%. Riavviare la shell:
+  la scelta resta salvata. Le colonne del launcher cambiano per lasciare
+  spazio alle etichette su due righe. Provare verticale e orizzontale.
+- Impostazioni rapide → Animazioni ridotte: le transizioni si disattivano.
+  A testo grande i controlli restano raggiungibili scorrendo il pannello.
+- Luminosità/volume: provare sia trascinamento sia pulsanti −/+, e frecce
+  con tastiera. Tab/Invio attivano i pulsanti, Esc chiude i pannelli.
+- Con tastiera a schermo aperta, il campo di ricerca resta sopra i tasti;
+  Home la chiude. Con il blocco aperto, la home non è visibile.
+- Verificare PIN e password anche al 150%, senza divulgare il segreto
+  nell'albero di accessibilità. I metadati non equivalgono a una verifica
+  completa con lettore di schermo: quel collaudo resta distinto.
+- All'avvio di un'app compare un messaggio; viene rimosso quando la finestra
+  prende il focus. Dopo 20 s compare un messaggio di attesa, senza spinner
+  continuo. Home annulla il messaggio e libera la politica foreground.

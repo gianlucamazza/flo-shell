@@ -22,6 +22,24 @@ ShellRoot {
 
     StatusBar {}
     HomeBar {}
+    Home {}
+    LaunchFeedback {}
+
+    Connections {
+        target: Apps
+        function onLaunchRequested(name: string): void { Ui.beginLaunch(name); }
+    }
+    Connections {
+        target: Compositor
+        function onActiveWindowChanged(): void {
+            if (Compositor.activeWindow)
+                Ui.showApplication();
+        }
+        function onWindowsChanged(): void {
+            if (Compositor.windows.length === 0 && Ui.launchingName === "")
+                Ui.home();
+        }
+    }
 
     LazyLoader {
         active: Ui.launcherLoaded
@@ -104,6 +122,7 @@ ShellRoot {
         target: "flo"
 
         function home(): void { Ui.home(); }
+        function textSize(value: real): void { UiPreferences.setTextScale(value); }
         function launcher(): void { Ui.toggleLauncher(); }
         function quickSettings(): void { Ui.toggleQuickSettings(); }
         function powerMenu(): void { Ui.openPowerMenu(); }
@@ -137,6 +156,13 @@ ShellRoot {
         function launch(desktopId: string): string { return Apps.launchById(desktopId); }
         // Close the window at this index of Compositor.windows (tests).
         function closeWindow(index: int): void { Compositor.closeWindow(Compositor.windows[index] || null); }
+        function activateWindow(index: int): void {
+            const w = Compositor.windows[index];
+            if (w) {
+                Ui.closeAll();
+                Compositor.focusWindow(w);
+            }
+        }
         function workspace(id: int): void { Compositor.focusWorkspace(id); }
         function volume(deltaPercent: int): void { Audio.step(deltaPercent / 100); }
         function mute(): void { Audio.toggleMute(); }
@@ -145,6 +171,12 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({
                 compositor: Compositor.backendName,
+                home: Ui.homeOpen,
+                launching: Ui.launchingName,
+                feedback: Ui.feedback,
+                textScale: Theme.textScale,
+                reducedMotion: Theme.reducedMotion,
+                screen: Device.screen ? Device.screen.name : "",
                 windows: Compositor.windows.length,
                 workspace: Compositor.activeWorkspaceId,
                 landscape: Device.landscape,
