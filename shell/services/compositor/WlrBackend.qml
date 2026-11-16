@@ -31,6 +31,10 @@ QtObject {
     function captureSource(w: var): var {
         return null;
     }
+    // wlr-foreign-toplevel-management carries no process id.
+    function pidOf(w: var, cb: var): void {
+        cb(-1);
+    }
     function focus(w: var): void {
         w.activate();
     }

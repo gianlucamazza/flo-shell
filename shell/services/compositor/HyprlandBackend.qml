@@ -38,6 +38,47 @@ QtObject {
     function captureSource(w: var): var {
         return w.wayland;
     }
+    // Process id of a window, from `hyprctl -j clients` (the Hyprland module
+    // has no pid). Requests made while a query runs wait for the next one,
+    // so a window created in between is always found.
+    property var _pidBatch: []
+    property var _pidWaiting: []
+    function pidOf(w: var, cb: var): void {
+        _pidWaiting.push({ address: String(w.address).replace(/^0x/, ""), cb: cb });
+        _pidRun();
+    }
+    function _pidRun(): void {
+        if (_clients.running || _pidBatch.length > 0 || _pidWaiting.length === 0)
+            return;
+        _pidBatch = _pidWaiting;
+        _pidWaiting = [];
+        _clients.running = true;
+    }
+    function _pidDone(text: string): void {
+        const pids = {};
+        try {
+            const list = JSON.parse(text);
+            for (let i = 0; i < list.length; i++)
+                pids[String(list[i].address).replace(/^0x/, "")] = list[i].pid;
+        } catch (e) {
+            console.warn("flo-compositor: cannot parse hyprctl clients:", e);
+        }
+        const batch = _pidBatch;
+        _pidBatch = [];
+        for (let i = 0; i < batch.length; i++) {
+            const pid = pids[batch[i].address];
+            batch[i].cb(typeof pid === "number" && pid > 0 ? pid : -1);
+        }
+        _pidRun();
+    }
+    property Process _clients: Process {
+        command: ["hyprctl", "-j", "clients"]
+        stdout: StdioCollector {
+            onStreamFinished: root._pidDone(text)
+        }
+        onRunningChanged: root._pidRun()
+    }
+
     function _dispatch(classic: string, lua: string): void {
         Hyprland.dispatch(root.lua ? lua : classic);
     }

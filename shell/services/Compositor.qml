@@ -19,6 +19,7 @@ import Quickshell
 //   function goBack()                function setDisplayPower(on)
 //   function transformOf(screen): int   function setTransform(screen, t)
 //   function captureSource(w): var
+//   function pidOf(w, cb)            cb(pid) asynchronously, -1 if unknown
 //
 // Everything else in the shell uses this singleton and standard protocols.
 Singleton {
@@ -42,7 +43,29 @@ Singleton {
     function windowTitle(w: var): string { return backend && w ? backend.title(w) : ""; }
     function windowAppId(w: var): string { return backend && w ? backend.appId(w) : ""; }
     function focusWindow(w: var): void { if (backend && w) backend.focus(w); }
-    function closeWindow(w: var): void { if (backend && w) backend.close(w); }
+    // Process id of a window's client, asynchronously: cb(pid), -1 if the
+    // backend cannot tell.
+    function windowPid(w: var, cb: var): void {
+        if (backend && w && backend.pidOf)
+            backend.pidOf(w, cb);
+        else
+            cb(-1);
+    }
+    // Optional hook run before a close request: function(w, done), which
+    // must call done() once. Sessiond installs it to thaw a frozen app
+    // first (a frozen client cannot answer the close).
+    property var beforeClose: null
+    function closeWindow(w: var): void {
+        if (!backend || !w)
+            return;
+        if (beforeClose)
+            beforeClose(w, () => {
+                if (root.backend)
+                    root.backend.close(w);
+            });
+        else
+            backend.close(w);
+    }
     function closeActiveWindow(): void { closeWindow(activeWindow); }
     function focusWorkspace(id: int): void { if (backend) backend.focusWorkspace(id); }
 

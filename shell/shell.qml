@@ -17,6 +17,9 @@ import qs.lock
 // flo-shell entry point. One process; the two bars are always present, every
 // other surface is created on first use.
 ShellRoot {
+    // Background app freezer: connect to flo-sessiond (no-op without it).
+    Component.onCompleted: Sessiond.start()
+
     StatusBar {}
     HomeBar {}
 
@@ -130,6 +133,16 @@ ShellRoot {
             else
                 Keyboard.toggle();
         }
+        // Launch an app by desktop id, the same way the launcher does.
+        function launch(desktopId: string): string {
+            const entry = DesktopEntries.byId(desktopId);
+            if (!entry)
+                return "not found";
+            Apps.launch(entry);
+            return "ok";
+        }
+        // Close the window at this index of Compositor.windows (tests).
+        function closeWindow(index: int): void { Compositor.closeWindow(Compositor.windows[index] || null); }
         function workspace(id: int): void { Compositor.focusWorkspace(id); }
         function volume(deltaPercent: int): void { Audio.step(deltaPercent / 100); }
         function mute(): void { Audio.toggleMute(); }
@@ -159,7 +172,13 @@ ShellRoot {
                 brightness: Math.round(Brightness.value * 100),
                 brightnessMethod: Brightness.method,
                 network: Network.active.kind,
-                battery: Battery.percent
+                battery: Battery.percent,
+                appScopes: Apps.scoped,
+                sessiond: {
+                    connected: Sessiond.connected,
+                    policy: Sessiond.policy,
+                    foreground: Sessiond.foregroundUnit
+                }
             });
         }
     }
