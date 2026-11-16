@@ -64,6 +64,12 @@ Singleton {
     }
 
     function openOverview(): void {
+        // With nothing open the overview would be an empty page: show the
+        // launcher instead, which is what the gesture is for in that case.
+        if (Compositor.windows.length === 0) {
+            openLauncher();
+            return;
+        }
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;

@@ -35,8 +35,10 @@ Singleton {
     readonly property int touch: Math.max(60, Device.mm(9.4))    // preferred target
     readonly property int edgeTouch: 48      // height of the invisible edge strips
     readonly property int swipeThreshold: Device.mm(2.5)
-    // Travel that turns a swipe up on the home bar into "overview".
-    readonly property int longSwipeThreshold: Device.mm(28)
+    // Travel that turns a swipe up on the home bar into "overview": about 45%
+    // of the panel height, so that an ordinary swipe opens the launcher
+    // (28 mm turned most natural swipes into "overview" on the tablet).
+    readonly property int longSwipeThreshold: Device.mm(65)
     // Travel after which a card dragged up in the overview is closed.
     readonly property int dismissThreshold: Device.mm(14)
 

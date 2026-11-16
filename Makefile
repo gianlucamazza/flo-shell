@@ -43,6 +43,8 @@ install: all
 	install -m 644 greeter/shell.qml greeter/Greeter.qml $(DESTDIR)$(DATADIR)/greeter/
 	for f in $(GREETER_LINKS); do ln -sfn ../shell/$$f $(DESTDIR)$(DATADIR)/greeter/$$f; done
 	install -m 644 session/hyprland.conf session/greeter-hyprland.conf $(DESTDIR)$(DATADIR)/session/
+	mkdir -p $(DESTDIR)$(DATADIR)/xdg/applications
+	install -m 644 session/xdg/applications/*.desktop $(DESTDIR)$(DATADIR)/xdg/applications/
 	find $(DESTDIR)$(DATADIR) -type d -exec chmod 755 {} +
 	find $(DESTDIR)$(DATADIR) -type f -exec chmod 644 {} +
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(SESSIONDIR) $(DESTDIR)$(SYSCONFDIR)/pam.d $(DESTDIR)$(DOCDIR)

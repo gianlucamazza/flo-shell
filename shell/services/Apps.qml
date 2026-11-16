@@ -8,13 +8,17 @@ import Quickshell
 Singleton {
     id: root
 
+    // Desktop entries that make no sense on the tablet: input-method setup
+    // (the shell drives the on-screen keyboard) and parental controls.
+    readonly property var hiddenIds: ["org.freedesktop.IBus.Setup", "org.freedesktop.MalcontentControl"]
+
     readonly property var all: {
         const out = [];
         const src = DesktopEntries.applications.values;
         for (let i = 0; i < src.length; i++) {
             const e = src[i];
             // Terminal-only entries are useless without a keyboard.
-            if (!e.noDisplay && !e.runInTerminal && e.name !== "")
+            if (!e.noDisplay && !e.runInTerminal && e.name !== "" && !root.hiddenIds.includes(e.id))
                 out.push(e);
         }
         out.sort((a, b) => a.name.localeCompare(b.name));

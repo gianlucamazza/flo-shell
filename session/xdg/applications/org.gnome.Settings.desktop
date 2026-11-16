@@ -1,0 +1,17 @@
+[Desktop Entry]
+# flo-shell override of GNOME Settings. gnome-control-center refuses to run
+# unless XDG_CURRENT_DESKTOP contains GNOME, and the flo-shell session is
+# Hyprland. Only the flo-shell session reads this directory (XDG_DATA_DIRS
+# in session/hyprland.conf); Phosh keeps the original entry.
+Name=Settings
+Name[it]=Impostazioni
+Comment=Utility to configure the GNOME desktop
+Comment[it]=Strumento per configurare il sistema
+Icon=org.gnome.Settings
+Exec=env XDG_CURRENT_DESKTOP=GNOME gnome-control-center
+DBusActivatable=false
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GNOME;GTK;Settings;
+Keywords=Preferences;Settings;

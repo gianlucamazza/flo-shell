@@ -18,7 +18,13 @@ export XDG_SESSION_TYPE=wayland
 export XDG_SESSION_DESKTOP=flo-shell
 export XDG_CURRENT_DESKTOP=Hyprland
 
-set -- Hyprland -c "$conf"
+# start-hyprland is the supervising launcher shipped with Hyprland; it watches
+# the compositor, and starting Hyprland directly makes it show a warning.
+if command -v start-hyprland > /dev/null 2>&1; then
+    set -- start-hyprland -- -c "$conf"
+else
+    set -- Hyprland -c "$conf"
+fi
 
 # The shell handles the power key (lock, power menu): keep logind from
 # powering off on it for as long as the session lives.
