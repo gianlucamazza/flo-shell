@@ -137,7 +137,8 @@ Singleton {
             _queued.push(entry);
             return;
         }
-        Sessiond.launching();
+        const unit = scoped ? scopeUnit(entry) : "";
+        Sessiond.launching(unit === "" ? "" : unit + ".scope");
         const cmd = [];
         const src = entry.command;
         for (let i = 0; src && i < src.length; i++)
@@ -150,7 +151,7 @@ Singleton {
         // the shell's environment), with systemd-run in front: with --scope
         // it execs the command itself, so nothing else changes for the app.
         const ctx = {
-            command: ["systemd-run", "--user", "--scope", "--quiet", "--collect", "--slice=app.slice", "--unit=" + scopeUnit(entry), "--"].concat(cmd)
+            command: ["systemd-run", "--user", "--scope", "--quiet", "--collect", "--slice=app.slice", "--unit=" + unit, "--"].concat(cmd)
         };
         if (entry.workingDirectory !== "")
             ctx.workingDirectory = entry.workingDirectory;
