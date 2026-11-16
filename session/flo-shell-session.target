@@ -1,0 +1,11 @@
+[Unit]
+# Started by the flo-shell Hyprland session (session/hyprland.conf) and
+# stopped by flo-session when the compositor exits. It binds
+# graphical-session.target, which systemd user services such as
+# xdg-desktop-portal require ("Current graphical user session is inactive"
+# otherwise).
+Description=flo-shell graphical session
+Documentation=man:systemd.special(7)
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

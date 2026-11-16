@@ -39,4 +39,9 @@ if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session > /dev/
     set -- dbus-run-session -- "$@"
 fi
 
-exec "$@"
+# Not exec: when the compositor exits, take the graphical session target
+# down so user services bound to it (portals) stop with the session.
+"$@"
+status=$?
+systemctl --user stop flo-shell-session.target > /dev/null 2>&1
+exit $status

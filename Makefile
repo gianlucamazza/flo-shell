@@ -18,6 +18,7 @@ DATADIR ?= $(PREFIX)/share/flo-shell
 SESSIONDIR ?= $(PREFIX)/share/wayland-sessions
 DOCDIR ?= $(PREFIX)/share/doc/flo-shell
 SYSCONFDIR ?= /etc
+USERUNITDIR ?= $(PREFIX)/lib/systemd/user
 
 SCRIPTS = flo-shell flo-session
 GREETER_LINKS = Device.qml Theme.qml I18n.qml components lock services
@@ -50,12 +51,15 @@ install: all
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(SESSIONDIR) $(DESTDIR)$(SYSCONFDIR)/pam.d $(DESTDIR)$(DOCDIR)
 	install -m 755 build/flo-shell build/flo-session $(DESTDIR)$(BINDIR)/
 	install -m 644 session/flo-shell.desktop $(DESTDIR)$(SESSIONDIR)/
+	mkdir -p $(DESTDIR)$(USERUNITDIR)
+	install -m 644 session/flo-shell-session.target $(DESTDIR)$(USERUNITDIR)/
 	install -m 644 session/pam/flo-shell $(DESTDIR)$(SYSCONFDIR)/pam.d/flo-shell
 	install -m 644 session/greetd/config.toml $(DESTDIR)$(DOCDIR)/greetd-config.toml
 
 uninstall:
 	rm -rf $(DESTDIR)$(DATADIR) $(DESTDIR)$(DOCDIR)
 	rm -f $(DESTDIR)$(BINDIR)/flo-shell $(DESTDIR)$(BINDIR)/flo-session
+	rm -f $(DESTDIR)$(USERUNITDIR)/flo-shell-session.target
 	rm -f $(DESTDIR)$(SESSIONDIR)/flo-shell.desktop $(DESTDIR)$(SYSCONFDIR)/pam.d/flo-shell
 
 clean:
