@@ -64,13 +64,12 @@ PanelWindow {
                 }
             }
             Pressable {
-                visible: Compositor.windows.length > 0
                 width: parent.width
                 height: Theme.touch
                 background: Theme.surfaceAlt
-                accessibleName: I18n.t("overview.title")
-                onTapped: Ui.openOverview()
-                Label { anchors.centerIn: parent; text: I18n.t("overview.title"); font.weight: Font.DemiBold }
+                accessibleName: I18n.t("qs.controls")
+                onTapped: Ui.openQuickSettings()
+                Label { anchors.centerIn: parent; text: I18n.t("qs.controls"); font.weight: Font.DemiBold }
             }
         }
     }
