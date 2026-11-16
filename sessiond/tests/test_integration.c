@@ -426,8 +426,12 @@ static void t_freezer_grace(void)
 	daemon_start(&e, NULL);
 	int c = cl_connect(&e);
 	CHECK(cl_err(c, "foreground " A, "not-owner"));
-	CHECK(cl_ok(c, "freeze-policy on"));
+	/* Grace periods start when the policy is switched on (background apps
+	 * are already background then), so measure from before that command;
+	 * under emulation the next round trip can take a sizeable part of the
+	 * 400 ms grace. */
 	int64_t t0 = ms_now();
+	CHECK(cl_ok(c, "freeze-policy on"));
 	CHECK(cl_ok(c, "foreground " A));
 	CHECK(app_is(&e, B, "0")); /* grace period: not frozen yet */
 	CHECK(app_wait(&e, B, "1", 4000) >= 0);
