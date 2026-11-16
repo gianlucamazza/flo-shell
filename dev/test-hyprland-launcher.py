@@ -19,7 +19,7 @@ class LauncherTests(unittest.TestCase):
         self.config = self.base / "config" / "flo-shell"
         self.config.mkdir(parents=True)
         for name, body in {
-            "Hyprland": '#!/bin/sh\nprintf "Hyprland %s built for test\\n" "$TEST_VERSION"\n',
+            "Hyprland": '#!/bin/sh\nif [ "$1" = --version ]; then\n printf "Hyprland %s built for test\\n" "$TEST_VERSION"\nelse\n printf "%s\\n" "$@"\nfi\n',
             "start-hyprland": '#!/bin/sh\nprintf "%s\\n" "$@"\n',
         }.items():
             p = self.bin / name
@@ -31,7 +31,7 @@ class LauncherTests(unittest.TestCase):
             self.env.pop(key, None)
 
     def launch(self, version, mode="session", **extra):
-        return subprocess.run(["sh", str(ROOT / "session/flo-hyprland.in"), mode],
+        return subprocess.run(["/bin/sh", str(ROOT / "session/flo-hyprland.in"), mode],
                               env={**self.env, "TEST_VERSION": version, **extra},
                               text=True, capture_output=True)
 
@@ -72,6 +72,14 @@ class LauncherTests(unittest.TestCase):
         r = self.launch("unknown")
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual(r.stdout, "")
+
+    def test_direct_compositor_when_supervisor_unavailable(self):
+        (self.bin / "start-hyprland").unlink()
+        (self.bin / "sed").symlink_to("/usr/bin/sed")
+        self.env["PATH"] = str(self.bin)
+        r = self.launch("0.57.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines(), ["-c", str(ROOT / "session/hyprland.lua")])
 
 
 if __name__ == "__main__":

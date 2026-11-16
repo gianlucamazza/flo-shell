@@ -101,7 +101,7 @@ QtObject {
     }
 
     function goBack(): void {
-        _dispatch("sendshortcut , XF86Back, activewindow", 'hl.dsp.send_shortcut({ mods = "", key = "XF86Back" })');
+        _dispatch("sendshortcut , XF86Back, activewindow", 'hl.dsp.send_shortcut({ mods = "", key = "XF86Back", window = "activewindow" })');
     }
     function setDisplayPower(on: bool): void {
         _dispatch("dpms " + (on ? "on" : "off"), 'hl.dsp.dpms({ action = "' + (on ? "on" : "off") + '" })');
