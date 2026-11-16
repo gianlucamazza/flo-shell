@@ -17,8 +17,14 @@ import qs.lock
 // flo-shell entry point. One process; the two bars are always present, every
 // other surface is created on first use.
 ShellRoot {
+    id: root
+    property int knownWindows: 0
     // Background app freezer: connect to flo-sessiond (no-op without it).
-    Component.onCompleted: Sessiond.start()
+    Component.onCompleted: {
+        Sessiond.start();
+        knownWindows = Compositor.windows.length;
+        if (knownWindows > 0) Ui.showApplication();
+    }
 
     StatusBar {}
     HomeBar {}
@@ -36,8 +42,14 @@ ShellRoot {
                 Ui.showApplication();
         }
         function onWindowsChanged(): void {
-            if (Compositor.windows.length === 0 && Ui.launchingName === "")
+            const count = Compositor.windows.length;
+            // A newly mapped app may not gain keyboard focus while Home's
+            // layer is focused. Reveal it without waiting for that focus.
+            if (count > root.knownWindows)
+                Ui.showApplication();
+            else if (count === 0 && Ui.launchingName === "")
                 Ui.home();
+            root.knownWindows = count;
         }
     }
 
