@@ -6,9 +6,9 @@ import Quickshell.Io
 
 // Backlight control, isolated here so the mechanism can change per device.
 //
-// Read:  /sys/class/backlight/<dev>/brightness, watched with inotify.
-// Write: `brightnessctl` when installed, otherwise logind
-//        Session.SetBrightness over D-Bus (busctl). Neither needs root.
+// Read: sysfs, refreshed after writes as well as file notifications.
+// Write: logind Session.SetBrightness when available; brightnessctl otherwise.
+// The CLI being installed does not imply permission to write sysfs.
 //
 // FLO_BACKLIGHT_DIR points the service at a fake directory (files
 // `brightness` and `max_brightness`) for development; writes then go
@@ -22,7 +22,7 @@ Singleton {
     property string method: "" // "brightnessctl" | "logind" | "file"
 
     readonly property string deviceName: devicePath.substring(devicePath.lastIndexOf("/") + 1)
-    readonly property bool available: devicePath !== "" && max > 0
+    readonly property bool available: devicePath !== "" && max > 0 && method !== ""
     readonly property real value: available ? raw / max : 0
     readonly property int minRaw: Math.max(1, Math.round(max * 0.02))
 
@@ -31,6 +31,10 @@ Singleton {
 
     property int _pending: -1
     property bool _primed: false
+
+    function _selectMethod(logindAvailable: bool, cliAvailable: bool): string {
+        return logindAvailable ? "logind" : cliAvailable ? "brightnessctl" : "";
+    }
 
     function set(v: real): void {
         if (!available)
@@ -64,24 +68,32 @@ Singleton {
 
     Process {
         id: writer
-        onExited: root._pump()
+        onExited: code => {
+            if (code !== 0)
+                console.warn("Backlight write failed (" + root.method + ", exit " + code + ")");
+            root._pump();
+            // sysfs need not emit an inotify event; failures emit none either.
+            if (!writer.running && root._pending < 0)
+                file.reload();
+        }
     }
 
     // One-shot discovery at startup.
     Process {
         running: true
-        command: ["sh", "-c", "d=\"${FLO_BACKLIGHT_DIR:-}\"; m=logind; "
+        command: ["sh", "-c", "d=\"${FLO_BACKLIGHT_DIR:-}\"; m=; l=0; c=0; "
             + "if [ -n \"$d\" ]; then m=file; else "
-            + "for c in /sys/class/backlight/*; do [ -e \"$c/brightness\" ] && d=\"$c\" && break; done; "
-            + "command -v brightnessctl >/dev/null 2>&1 && m=brightnessctl; fi; "
-            + "echo \"$d\"; cat \"$d/max_brightness\" 2>/dev/null || echo 0; echo \"$m\""]
+            + "for candidate in /sys/class/backlight/*; do [ -e \"$candidate/brightness\" ] && d=\"$candidate\" && break; done; "
+            + "command -v busctl >/dev/null 2>&1 && busctl --system status org.freedesktop.login1 >/dev/null 2>&1 && l=1; "
+            + "command -v brightnessctl >/dev/null 2>&1 && c=1; fi; "
+            + "echo \"$d\"; cat \"$d/max_brightness\" 2>/dev/null || echo 0; echo \"$m\"; echo \"$l\"; echo \"$c\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n");
-                if (lines.length < 3 || lines[0] === "")
+                if (lines.length < 5 || lines[0] === "")
                     return;
                 root.max = parseInt(lines[1]) || 0;
-                root.method = lines[2];
+                root.method = lines[2] === "file" ? "file" : root._selectMethod(lines[3] === "1", lines[4] === "1");
                 root.devicePath = lines[0];
             }
         }
@@ -94,6 +106,9 @@ Singleton {
         printErrors: false
         onFileChanged: reload()
         onLoaded: {
+            // Keep the newest intent while an older write is still completing.
+            if (writer.running || root._pending >= 0)
+                return;
             const v = parseInt(file.text());
             if (isNaN(v))
                 return;

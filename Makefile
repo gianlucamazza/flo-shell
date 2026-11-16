@@ -35,6 +35,7 @@ check: all
 	sh -n build/flo-hyprland
 	sh -n dev/run-nested.sh
 	python3 dev/test-hyprland-launcher.py
+	python3 dev/test-brightness.py
 	sh dev/check-hyprland.sh
 
 install: all
