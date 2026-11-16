@@ -11,7 +11,9 @@ Singleton {
     id: root
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
-    readonly property bool available: sink !== null && sink.ready && sink.audio !== null
+    // False without a real output device: no default sink, or only the
+    // "auto_null" dummy sink some setups create when there is no card.
+    readonly property bool available: sink !== null && sink.ready && sink.audio !== null && sink.name !== "auto_null"
     readonly property real volume: available ? sink.audio.volume : 0
     readonly property bool muted: available ? sink.audio.muted : false
 

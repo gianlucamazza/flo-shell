@@ -184,7 +184,10 @@ PanelWindow {
                     available: Network.available && Network.wifiHardwareEnabled
                     onTapped: Network.setWifiEnabled(!Network.wifiEnabled)
                 }
+                // Only with an adapter (the tablet has none yet); appears by
+                // itself when BlueZ reports one.
                 ToggleTile {
+                    visible: Bt.available
                     width: tiles.tileWidth
                     compact: win.side
                     icon: "bluetooth"
@@ -221,7 +224,10 @@ PanelWindow {
                 available: Brightness.available
                 onMoved: v => Brightness.set(v)
             }
+            // Only with an output device (the tablet has no sound card
+            // yet); appears by itself when PipeWire gets a sink.
             LevelSlider {
+                visible: Audio.available
                 width: parent.width
                 icon: Audio.muted ? "volume-mute" : "volume"
                 value: Audio.muted ? 0 : Audio.volume
