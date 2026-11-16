@@ -100,7 +100,11 @@ PanelWindow {
         onSucceeded: {
             status = I18n.t("greeter.starting");
             // The session command is a shell command line (Exec= syntax).
-            launch(["/bin/sh", "-c", "exec " + win.sessionCommand], ["XDG_SESSION_TYPE=wayland"]);
+            // greetd joins the command words with spaces and runs the result
+            // with /bin/sh -c (after sourcing the profile), so the session
+            // command goes as one shell string. Wrapping it in "/bin/sh -c"
+            // here made it "sh -c exec flo-session", which exits at once.
+            launch([win.sessionCommand], ["XDG_SESSION_TYPE=wayland"]);
         }
         onLaunched: win.launched = true
     }

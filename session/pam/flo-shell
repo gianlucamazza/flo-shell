@@ -1,7 +1,8 @@
 #%PAM-1.0
-# PAM service used by the flo-shell lock screen (PamContext, config
-# "flo-shell"). Alpine / postmarketOS layout: base-auth and base-account
-# come with linux-pam. On other distributions include their common auth
-# stack instead (e.g. "system-auth" on Arch, "common-auth" on Debian).
-auth     include base-auth
-account  include base-account
+# PAM service of the flo-shell lock screen. Quickshell opens it from
+# /etc/pam.d directly (PamContext configDirectory), so it cannot include
+# stacks that live elsewhere (Alpine keeps base-auth in /usr/lib/pam.d):
+# the rules are spelled out.
+auth     required pam_unix.so
+auth     optional pam_gnome_keyring.so
+account  required pam_unix.so
