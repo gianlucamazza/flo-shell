@@ -20,7 +20,7 @@ DOCDIR ?= $(PREFIX)/share/doc/flo-shell
 SYSCONFDIR ?= /etc
 USERUNITDIR ?= $(PREFIX)/lib/systemd/user
 
-SCRIPTS = flo-shell flo-session
+SCRIPTS = flo-shell flo-session flo-hyprland
 GREETER_LINKS = Device.qml Theme.qml I18n.qml components lock services
 
 all: $(addprefix build/,$(SCRIPTS))
@@ -32,24 +32,23 @@ build/%: session/%.in
 check: all
 	sh -n build/flo-shell
 	sh -n build/flo-session
+	sh -n build/flo-hyprland
 	sh -n dev/run-nested.sh
-	@if command -v Hyprland > /dev/null 2>&1; then \
-		Hyprland --verify-config -c session/hyprland.conf | tail -n 1; \
-		Hyprland --verify-config -c session/greeter-hyprland.conf | tail -n 1; \
-	fi
+	python3 dev/test-hyprland-launcher.py
+	sh dev/check-hyprland.sh
 
 install: all
 	mkdir -p $(DESTDIR)$(DATADIR)/shell $(DESTDIR)$(DATADIR)/greeter $(DESTDIR)$(DATADIR)/session
 	cp -R shell/. $(DESTDIR)$(DATADIR)/shell/
 	install -m 644 greeter/shell.qml greeter/Greeter.qml $(DESTDIR)$(DATADIR)/greeter/
 	for f in $(GREETER_LINKS); do ln -sfn ../shell/$$f $(DESTDIR)$(DATADIR)/greeter/$$f; done
-	install -m 644 session/hyprland.conf session/greeter-hyprland.conf $(DESTDIR)$(DATADIR)/session/
+	install -m 644 session/hyprland.conf session/greeter-hyprland.conf session/hyprland.lua session/greeter-hyprland.lua $(DESTDIR)$(DATADIR)/session/
 	mkdir -p $(DESTDIR)$(DATADIR)/xdg/applications
 	install -m 644 session/xdg/applications/*.desktop $(DESTDIR)$(DATADIR)/xdg/applications/
 	find $(DESTDIR)$(DATADIR) -type d -exec chmod 755 {} +
 	find $(DESTDIR)$(DATADIR) -type f -exec chmod 644 {} +
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(SESSIONDIR) $(DESTDIR)$(SYSCONFDIR)/pam.d $(DESTDIR)$(DOCDIR)
-	install -m 755 build/flo-shell build/flo-session $(DESTDIR)$(BINDIR)/
+	install -m 755 $(addprefix build/,$(SCRIPTS)) $(DESTDIR)$(BINDIR)/
 	install -m 644 session/flo-shell.desktop $(DESTDIR)$(SESSIONDIR)/
 	mkdir -p $(DESTDIR)$(USERUNITDIR)
 	install -m 644 session/flo-shell-session.target $(DESTDIR)$(USERUNITDIR)/
@@ -58,7 +57,7 @@ install: all
 
 uninstall:
 	rm -rf $(DESTDIR)$(DATADIR) $(DESTDIR)$(DOCDIR)
-	rm -f $(DESTDIR)$(BINDIR)/flo-shell $(DESTDIR)$(BINDIR)/flo-session
+	rm -f $(addprefix $(DESTDIR)$(BINDIR)/,$(SCRIPTS))
 	rm -f $(DESTDIR)$(USERUNITDIR)/flo-shell-session.target
 	rm -f $(DESTDIR)$(SESSIONDIR)/flo-shell.desktop $(DESTDIR)$(SYSCONFDIR)/pam.d/flo-shell
 

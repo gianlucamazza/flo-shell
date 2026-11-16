@@ -40,8 +40,9 @@ greeter/
   Device.qml Theme.qml I18n.qml components lock services
                        collegamenti simbolici verso ../shell
 session/
-  hyprland.conf        configurazione del tablet (sintassi classica)
-  greeter-hyprland.conf  compositore minimo per il greeter
+  hyprland.conf / .lua  configurazione del tablet (0.54 / >= 0.55)
+  greeter-hyprland.conf / .lua  compositore minimo per il greeter
+  flo-hyprland.in      selezione della sintassi e avvio del compositore
   flo-session.in       avvio della sessione → /usr/bin/flo-session
   flo-shell.in         avvio/IPC della shell → /usr/bin/flo-shell
   flo-shell.desktop    voce in /usr/share/wayland-sessions
@@ -81,6 +82,18 @@ Scelta del backend: `hyprland` se è impostata `HYPRLAND_INSTANCE_SIGNATURE`,
 altrimenti `wlr` (wlr-foreign-toplevel-management tramite `ToplevelManager`).
 `FLO_COMPOSITOR=wlr|hyprland` forza la scelta. Se il backend Hyprland non si
 carica si ripiega su `wlr`.
+
+`flo-session` e greetd (`flo-hyprland greeter`) scelgono automaticamente
+la configurazione classica su Hyprland 0.54 e Lua dalla 0.55. La sessione
+preferisce il file utente `~/.config/flo-shell/hyprland.lua` nelle versioni
+Lua; un precedente `hyprland.conf` continua a essere rispettato fino alla
+0.56. Dalla 0.57, se resta solo quel file, l'avvio si ferma con un messaggio
+di migrazione anziché ignorare le personalizzazioni. `FLO_HYPRLAND_CONF`
+e `FLO_GREETER_CONF` permettono di indicare un file esplicito.
+
+Il backend Quickshell sceglie i dispatcher tramite `Hyprland.usingLua`,
+compresi DPMS, Indietro e rotazione. Il greeter Lua mantiene il cursore
+sempre invisibile come quello classico.
 
 Un backend è un `QtObject` con:
 

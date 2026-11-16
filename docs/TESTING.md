@@ -94,6 +94,7 @@ tenendo una seconda via di accesso (SSH).
 | Cosa fare | Cosa deve succedere |
 |---|---|
 | Riavviare greetd | Hyprland minimo, poi la schermata di accesso: ora, utente evidenziato, tastierino |
+| Avviare il tablet e attendere il greeter senza toccare lo schermo | nessun cursore, neanche sopra l'etichetta del PIN; resta invisibile anche muovendo un mouse USB. Il tastierino touch continua a funzionare |
 | Schermata di accesso con Hyprland installato | **nessuna** scelta di sessione: `hyprland.desktop` e `hyprland-uwsm.desktop` non compaiono, c'è solo flo-shell e quindi niente pulsanti |
 | `FLO_GREETER_SESSIONS=flo-shell,phosh` davanti al comando del greeter in `/etc/greetd/config.toml`, riavviare greetd | compaiono i pulsanti flo-shell e Phosh; il tocco cambia la selezione. Con `*` compaiono tutte le sessioni tranne quelle con `Hidden=true`/`NoDisplay=true` |
 | Più utenti | compaiono come pulsanti; il tocco cambia la selezione |
@@ -101,6 +102,22 @@ tenendo una seconda via di accesso (SSH).
 | Codice giusto | "Avvio della sessione…", il greeter sparisce e parte la sessione scelta |
 | Schermo nero al posto del greeter | l'utente `greetd` non ha accesso a video/input/seat: controllare gruppi e seatd/elogind; log in `/var/log/greetd*` o `journalctl -u greetd` |
 | Nel log di Quickshell compare `Received unexpected greetd response` dopo un codice sbagliato | visto anche con il greetd finto: viene da Quickshell (risposta al `cancel_session`), non blocca nulla. Annotare se succede con greetd vero |
+
+### Compatibilità Hyprland classico / Lua
+
+`make check` verifica i lanciatori e le configurazioni supportate dalla
+versione locale: classico sulla 0.54, entrambi sulla 0.55–0.56, Lua dalla
+0.57. I test del lanciatore coprono scelta della versione, configurazioni
+utente, override con spazi nel percorso, file mancanti e blocco della
+configurazione utente classica dalla 0.57. Il comando greetd è ora
+`flo-hyprland greeter`.
+
+Collaudo annidato Lua: `FLO_NESTED_CONF=lua dev/run-nested.sh`. Verificare
+rotazione 0/90/180/270 e stato monitor; i dispatcher DPMS Lua
+`hl.dsp.dpms({ action = "off" })` e `hl.dsp.dpms({ action = "on" })`
+devono cambiare `dpmsStatus` in `hyprctl -j monitors`. Eseguire i comandi
+solo sull'istanza annidata indicata dallo script. Prima di aggiornare
+Hyprland sul tablet ripetere le prove touch e tasti fisici della sezione 3.
 
 ## 5. Panoramica **[solo IPC; tocco e trascinamento mai provati]**
 
