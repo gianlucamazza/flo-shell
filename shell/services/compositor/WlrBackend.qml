@@ -32,6 +32,7 @@ QtObject {
         return null;
     }
     // wlr-foreign-toplevel-management carries no process id.
+    readonly property bool supportsPid: false
     function pidOf(w: var, cb: var): void {
         cb(-1);
     }

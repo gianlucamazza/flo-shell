@@ -98,6 +98,13 @@ Singleton {
         retry.stop();
         _pending = [];
         console.info("flo-sessiond: connected to " + socketPath);
+        // Without window pids (wlr backend) the foreground app is unknown:
+        // taking the policy would freeze the visible app. Thaw and boost
+        // still work.
+        if (!Compositor.supportsWindowPid) {
+            console.info("flo-sessiond: the compositor backend gives no window pids, freezer policy not taken");
+            return;
+        }
         _send("freeze-policy on", (ok, line) => {
             if (!ok) {
                 console.info("flo-sessiond: freeze-policy refused: " + line);
@@ -232,13 +239,19 @@ Singleton {
         onRunningChanged: root._cgNext()
     }
 
-    // Unit of a window ("" if unknown or not an app scope).
+    // Unit of a window: "" if it is not in an app scope, null if the
+    // lookup failed (window gone, no pid).
     function unitOfWindow(w: var, cb: var): void {
         if (!w) {
             cb("");
             return;
         }
-        Compositor.windowPid(w, pid => root.unitOfPid(pid, cb));
+        Compositor.windowPid(w, pid => {
+            if (pid <= 0)
+                cb(null);
+            else
+                root.unitOfPid(pid, cb);
+        });
     }
 
     // ---- Foreground ------------------------------------------------------
@@ -249,7 +262,9 @@ Singleton {
             return;
         const seq = ++_fgSeq;
         unitOfWindow(Compositor.activeWindow, unit => {
-            if (seq !== root._fgSeq || !root.policy || unit === root._sentForeground)
+            // A failed lookup keeps the previous foreground: sending "-"
+            // would freeze the app that is still on screen.
+            if (unit === null || seq !== root._fgSeq || !root.policy || unit === root._sentForeground)
                 return;
             root._sentForeground = unit;
             root._send("foreground " + (unit === "" ? "-" : unit), ok => {
@@ -301,7 +316,7 @@ Singleton {
         closeGuard.pending.push(finish);
         closeGuard.restart();
         unitOfWindow(w, unit => {
-            if (unit === "")
+            if (!unit)
                 finish();
             else
                 root._send("thaw " + unit, () => finish());

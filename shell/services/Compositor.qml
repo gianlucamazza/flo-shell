@@ -19,7 +19,8 @@ import Quickshell
 //   function goBack()                function setDisplayPower(on)
 //   function transformOf(screen): int   function setTransform(screen, t)
 //   function captureSource(w): var
-//   function pidOf(w, cb)            cb(pid) asynchronously, -1 if unknown
+//   property bool supportsPid        function pidOf(w, cb)
+//                                    cb(pid) asynchronously, -1 if unknown
 //
 // Everything else in the shell uses this singleton and standard protocols.
 Singleton {
@@ -45,6 +46,7 @@ Singleton {
     function focusWindow(w: var): void { if (backend && w) backend.focus(w); }
     // Process id of a window's client, asynchronously: cb(pid), -1 if the
     // backend cannot tell.
+    readonly property bool supportsWindowPid: backend ? backend.supportsPid === true : false
     function windowPid(w: var, cb: var): void {
         if (backend && w && backend.pidOf)
             backend.pidOf(w, cb);

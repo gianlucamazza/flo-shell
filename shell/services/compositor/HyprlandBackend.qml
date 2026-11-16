@@ -41,6 +41,7 @@ QtObject {
     // Process id of a window, from `hyprctl -j clients` (the Hyprland module
     // has no pid). Requests made while a query runs wait for the next one,
     // so a window created in between is always found.
+    readonly property bool supportsPid: true
     property var _pidBatch: []
     property var _pidWaiting: []
     function pidOf(w: var, cb: var): void {

@@ -103,6 +103,35 @@ Singleton {
         return "app-" + unitEscape(entry.id) + "-" + "00000000".slice(rnd.length) + rnd;
     }
 
+    // By desktop id (IPC). Quickshell reads the .desktop files in the
+    // background on first use, so a request that comes before the index
+    // waits for it.
+    property var _queuedIds: []
+    function launchById(id: string): string {
+        const entry = DesktopEntries.byId(id);
+        if (entry) {
+            launch(entry);
+            return "ok";
+        }
+        if (DesktopEntries.applications.values.length > 0)
+            return "not found";
+        _queuedIds.push(id);
+        return "queued";
+    }
+    onAllChanged: {
+        if (_queuedIds.length === 0 || DesktopEntries.applications.values.length === 0)
+            return;
+        const ids = _queuedIds;
+        _queuedIds = [];
+        for (let i = 0; i < ids.length; i++) {
+            const entry = DesktopEntries.byId(ids[i]);
+            if (entry)
+                launch(entry);
+            else
+                console.warn("flo-apps: no desktop entry " + ids[i]);
+        }
+    }
+
     function launch(entry: DesktopEntry): void {
         if (!_probed) {
             _queued.push(entry);
