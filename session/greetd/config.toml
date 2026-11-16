@@ -15,5 +15,5 @@
 vt = 1
 
 [default_session]
-command = "Hyprland -c /usr/share/flo-shell/session/greeter-hyprland.conf"
+command = "start-hyprland -- -c /usr/share/flo-shell/session/greeter-hyprland.conf"
 user = "greetd"
