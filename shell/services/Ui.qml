@@ -10,10 +10,12 @@ Singleton {
     id: root
 
     property bool homeOpen: true
+    property bool keepHome: false
     property string launchingName: ""
     property string feedback: ""
 
     function showApplication(): void {
+        keepHome = false;
         homeOpen = false;
         launchingName = "";
         feedback = "";
@@ -21,6 +23,7 @@ Singleton {
         feedbackTimer.stop();
     }
     function beginLaunch(name: string): void {
+        keepHome = false;
         closeAll();
         homeOpen = false;
         launchingName = name;
@@ -120,6 +123,7 @@ Singleton {
     // Home always returns to the same surface, preserving running apps.
     function home(): void {
         closeAll();
+        keepHome = true;
         launchingName = "";
         feedback = "";
         launchTimer.stop();

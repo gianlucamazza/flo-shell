@@ -313,6 +313,10 @@ Singleton {
         if (!sock.connected)
             return;
         _send("boost 500", () => {}); // ERR disabled is fine
+        if (Ui.homeOpen && Ui.keepHome) {
+            updateForeground();
+            return;
+        }
         if (unit !== "" && root.policy) {
             root._fgSeq++;
             root._sentForeground = unit;

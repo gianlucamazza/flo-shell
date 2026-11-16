@@ -38,14 +38,14 @@ ShellRoot {
     Connections {
         target: Compositor
         function onActiveWindowChanged(): void {
-            if (Compositor.activeWindow)
+            if (Compositor.activeWindow && !Ui.keepHome)
                 Ui.showApplication();
         }
         function onWindowsChanged(): void {
             const count = Compositor.windows.length;
             // A newly mapped app may not gain keyboard focus while Home's
             // layer is focused. Reveal it without waiting for that focus.
-            if (count > root.knownWindows)
+            if (count > root.knownWindows && !Ui.keepHome)
                 Ui.showApplication();
             else if (count === 0 && Ui.launchingName === "")
                 Ui.home();

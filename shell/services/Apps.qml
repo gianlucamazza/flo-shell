@@ -85,7 +85,7 @@ Singleton {
             const q = root._queued;
             root._queued = [];
             for (let i = 0; i < q.length; i++)
-                root.launch(q[i]);
+                root._launchReady(q[i]);
         }
     }
 
@@ -155,12 +155,54 @@ Singleton {
             Compositor.focusWindow(existing);
             return;
         }
+        root.launchRequested(entry.name);
         if (!_probed) {
             _queued.push(entry);
             return;
         }
+        _launchReady(entry);
+    }
+    function _launchReady(entry: DesktopEntry): void {
+        if (scoped) {
+            _launchQueue.push(entry);
+            _probeLaunch();
+        } else {
+            _startEntry(entry);
+        }
+    }
+
+    // A startup cancelled with Home can be frozen before its first window.
+    // Reuse and thaw that scope before forwarding single-instance activation.
+    property var _launchQueue: []
+    property var _launchJob: null
+    function _probeLaunch(): void {
+        if (scopeProbe.running || _launchJob || _launchQueue.length === 0) return;
+        _launchJob = _launchQueue.shift();
+        const pattern = "app-" + unitEscape(_launchJob.id).replace(/\\/g, "\\\\") + "-*.scope";
+        scopeProbe.command = ["systemctl", "--user", "list-units", "--state=active", "--no-legend", "--plain", "--full", pattern];
+        scopeProbe.running = true;
+    }
+    function _launchProbeDone(text: string): void {
+        const entry = _launchJob;
+        _launchJob = null;
+        if (!entry) return;
+        const unit = text.trim().split(/\s+/)[0] || "";
+        if (unit.startsWith("app-") && unit.endsWith(".scope")) {
+            Sessiond.launching(unit);
+            entry.execute();
+        } else {
+            _startEntry(entry);
+        }
+        _probeLaunch();
+    }
+    Process {
+        id: scopeProbe
+        stdout: StdioCollector { onStreamFinished: root._launchProbeDone(text) }
+        stderr: StdioCollector {}
+        onRunningChanged: root._probeLaunch()
+    }
+    function _startEntry(entry: DesktopEntry): void {
         const unit = scoped ? scopeUnit(entry) : "";
-        root.launchRequested(entry.name);
         Sessiond.launching(unit === "" ? "" : unit + ".scope");
         const cmd = [];
         const src = entry.command;

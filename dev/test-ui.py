@@ -55,20 +55,32 @@ for angle in (90, 180, 270, 0):
     assert state()["rotation"] == angle
     assert state()["home"] is True
 call("textSize", "1")
-# A real client proves Home keeps the application, and restoring the same
-# focused client dismisses Home even if activeWindow does not change.
+# Launch through the real app entry point, then cancel foreground intent.
+assert call("launch", "foot") == "ok"
+call("home")
+assert state()["home"] and state()["launching"] == ""
+end = time.monotonic() + 8
+while state()["windows"] == 0 and time.monotonic() < end:
+    time.sleep(.1)
+assert state()["windows"] == 1, "Run this test with no other nested clients"
+assert state()["home"], "A late app window must not steal an explicit Home"
 client = subprocess.Popen(["foot", "--app-id=flo-ui-test", "sh", "-c", "sleep 120"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 try:
     end = time.monotonic() + 8
-    while (state()["windows"] == 0 or state()["home"]) and time.monotonic() < end:
+    while state()["windows"] < 2 and time.monotonic() < end:
         time.sleep(.1)
-    assert state()["windows"] == 1, "Run this test with no other nested clients"
-    assert state()["home"] is False
-    call("home")
-    assert state()["home"] and state()["windows"] == 1
+    assert state()["windows"] == 2 and state()["home"]
+    client.terminate()
+    client.wait(timeout=5)
+    end = time.monotonic() + 4
+    while state()["windows"] > 1 and time.monotonic() < end:
+        time.sleep(.1)
     call("activateWindow", "0")
     assert state()["home"] is False
+    call("home")
+    assert call("launch", "foot") == "ok"
+    assert state()["home"] is False and state()["windows"] == 1
     call("closeWindow", "0")
     end = time.monotonic() + 4
     while state()["windows"] and time.monotonic() < end:
@@ -77,5 +89,7 @@ try:
 finally:
     client.terminate()
     client.wait(timeout=5)
+    if state()["windows"]:
+        call("closeWindow", "0")
     call("textSize", "1")
-print("PASS: stable Home, panels, Back, text scale, rotations and real app restore")
+print("PASS: Home intent, panels, Back, text scale, rotations, app reuse and restore")
