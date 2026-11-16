@@ -31,6 +31,10 @@ Singleton {
         return v !== null && v !== undefined && v !== "" ? Math.max(0, parseInt(v) || 0) : 120;
     }
 
+    // Set by the `idleInhibit` IPC call (automated tests): no idle lock or
+    // panel blanking while true. It never unlocks a locked session.
+    property bool idleInhibited: false
+
     readonly property string stateDir: Quickshell.env("FLO_STATE_DIR") || Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
     readonly property string markerPath: stateDir + "/flo-shell.locked"
 
@@ -103,6 +107,8 @@ Singleton {
         return !locked;
     }
     function idle(): void {
+        if (idleInhibited)
+            return;
         lock();
         setDisplay(false);
     }

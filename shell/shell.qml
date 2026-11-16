@@ -84,8 +84,10 @@ ShellRoot {
     }
 
     // Lock after a period without input (ext-idle-notify, event driven).
+    // The compositor has no idle handling of its own (no hypridle in the
+    // session): gating this monitor is all the idle inhibit IPC needs.
     IdleMonitor {
-        enabled: Session.idleSeconds > 0
+        enabled: Session.idleSeconds > 0 && !Session.idleInhibited
         timeout: Math.max(1, Session.idleSeconds)
         onIsIdleChanged: {
             if (isIdle)
@@ -107,6 +109,9 @@ ShellRoot {
         function appSwitcher(): void { Compositor.showAppSwitcher(); }
         function overview(): void { Compositor.showAppSwitcher(); }
         function lock(): void { Session.lock(); }
+        // For automated tests: no idle lock or blanking while on. Does not
+        // unlock a session that is already locked.
+        function idleInhibit(on: bool): void { Session.idleInhibited = on; }
         // Power key: short press on release, long press while held.
         function powerKey(): void { Session.powerKey(); }
         function powerKeyLong(): void {
@@ -142,6 +147,7 @@ ShellRoot {
                 overview: Ui.overviewOpen,
                 locked: Session.locked,
                 displayOn: Session.displayOn,
+                idleInhibited: Session.idleInhibited,
                 rotation: RotationLock.degrees,
                 rotationSupported: RotationLock.supported,
                 keyboardAvailable: Keyboard.available,
