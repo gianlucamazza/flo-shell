@@ -59,8 +59,8 @@ Superfici (tutte layer-shell, tutte opache tranne le due strisce tattili):
 
 | Superficie | Livello | Note |
 |---|---|---|
-| Barra di stato | top | 30 px visibili e riservati, superficie di almeno 56 px |
-| Barra home | top | 20 px visibili e riservati, superficie di almeno 56 px |
+| Barra di stato | top | 30 px visibili e riservati; non intercetta i controlli delle app |
+| Barra home | top | 68 px riservati; Indietro, Home, App aperte e tastiera, bersagli da 60 px |
 | Launcher, impostazioni rapide | overlay | create al primo uso, poi tenute in memoria |
 | Menu di alimentazione | overlay | a tutto schermo, copre anche le barre |
 | Panoramica | overlay | tra le due barre, creata al primo uso |
@@ -448,23 +448,22 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
   deriva le misure. Bersagli tattili da 60 px (9,4 mm), minimo 56 px (9 mm);
   testo corrente a 16 px, mai sotto 15 px. Nessun componente contiene misure
   proprie del dispositivo.
-- **Barre sottili, aree tattili larghe.** La barra di stato occupa 30 px e la
-  barra home 20 px, ma le loro superfici sono alte 48 px: la parte in più è
-  trasparente e serve solo a ricevere il tocco. Costo: i 18 px sotto la barra
-  e i 28 px sopra la barra home non arrivano all'applicazione.
-- **Navigazione a schermo.** Senza tasto home, la barra in basso fa da home:
-  tocco o scorrimento verso l'alto aprono il launcher, oppure chiudono ciò
-  che è aperto; uno scorrimento lungo apre la panoramica; nell'angolo destro
-  c'è il pulsante della tastiera. Sulla barra di stato tocco o scorrimento verso il basso
-  aprono le impostazioni rapide.
+- **Barre e input.** Stato: 30 px visibili, riservati e di input, senza
+  intercettare i controlli delle app. Navigazione inferiore: 68 px riservati,
+  pulsanti con bersagli da 60 px. Home offre anche un pulsante grande per
+  i controlli rapidi, alternativo al tocco/scorrimento sulla barra superiore.
+- **Navigazione a schermo.** Home mostra sempre la stessa schermata e
+  conserva le app. Indietro chiude prima i pannelli; App aperte mostra la
+  panoramica. I gesti sono scorciatoie aggiuntive e il comando tastiera resta
+  visibile. Una finestra arrivata dopo Home non ne ruba la visibilità.
 - **Zone del pollice.** In verticale i controlli usati spesso stanno nel
   terzo inferiore: riquadri e cursori delle impostazioni rapide, campo di
   ricerca e finestre aperte del launcher, pulsanti di alimentazione. In
   orizzontale stanno sul bordo destro: le impostazioni rapide diventano un
-  pannello laterale da 360 px con riquadri a sola icona, la ricerca va in
+  pannello laterale da 400 px (adattato al testo) con etichette visibili e controlli scorrevoli, la ricerca va in
   basso a destra, i pulsanti di alimentazione in colonna a destra.
-- **Disposizione per orientamento.** Griglia del launcher a 4 colonne in
-  verticale e 6 in orizzontale; popup delle notifiche in alto al centro in
+- **Disposizione per orientamento.** Griglia del launcher calcolata dalla
+  larghezza disponibile e dalla scala del testo, fino a 6 colonne; popup delle notifiche in alto al centro in
   verticale e in alto a destra in orizzontale.
 - **Niente rete mobile.** La barra mostra solo Wi-Fi o cavo.
 - **Dispositivi assenti.** Senza uscita audio (nessun sink PipeWire, o solo
@@ -482,8 +481,6 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
 
 - Gli scorrimenti sulle barre scattano al rilascio del dito, non a metà
   gesto: vedi il commento in `components/EdgeArea.qml`.
-- Il pulsante della tastiera sulla barra home è alto 48 px (l'altezza della
-  striscia tattile), sotto il minimo di 56: è largo 76 px per compensare.
 - Il campo di ricerca del launcher è in basso: con la tastiera aperta sale
   solo se il compositore accorcia la superficie del launcher per la zona
   esclusiva di wvkbd. Da verificare sul tablet.
