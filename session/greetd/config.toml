@@ -10,6 +10,9 @@
 #   FLO_GREETER_USER=user        user selected at start
 #   FLO_GREETER_SESSION=...      session command when no *.desktop matches
 #                                (default: flo-session)
+#   FLO_GREETER_SESSIONS=flo-shell,phosh
+#                                session files offered (basenames without
+#                                .desktop, "*" for all; default: flo-shell)
 
 [terminal]
 vt = 1

@@ -54,15 +54,27 @@ PanelWindow {
 
     // ---- Sessions --------------------------------------------------------
     readonly property string defaultSession: Quickshell.env("FLO_GREETER_SESSION") || "flo-session"
-    // [{ name, exec }] from the wayland-sessions directory.
+    // Session files offered, by basename without ".desktop": only the
+    // flo-shell session by default, so the stock hyprland.desktop and
+    // hyprland-uwsm.desktop of the Hyprland package stay out of the way.
+    // FLO_GREETER_SESSIONS=a,b replaces the list, "*" offers every file.
+    readonly property var allowedSessions: (Quickshell.env("FLO_GREETER_SESSIONS") || "flo-shell").split(",").map(s => s.trim()).filter(s => s !== "")
+    function sessionAllowed(id: string): bool {
+        return allowedSessions.indexOf("*") >= 0 || allowedSessions.indexOf(id) >= 0;
+    }
+    // [{ id, name, exec }] from the wayland-sessions directory.
     property var sessions: []
     property int sessionIndex: 0
     readonly property string sessionCommand: sessions.length > 0 && sessionIndex >= 0 && sessionIndex < sessions.length ? sessions[sessionIndex].exec : defaultSession
 
+    // One line per session file: basename, Name, Exec. Files with
+    // Hidden=true or NoDisplay=true are skipped (desktop entry spec).
     Process {
         command: ["sh", "-c", "for f in \"$1\"/*.desktop; do [ -f \"$f\" ] || continue;"
+            + " grep -qE '^(Hidden|NoDisplay)=true' \"$f\" && continue;"
+            + " b=${f##*/}; b=${b%.desktop};"
             + " n=$(sed -n 's/^Name=//p' \"$f\" | head -n 1); e=$(sed -n 's/^Exec=//p' \"$f\" | head -n 1);"
-            + " [ -n \"$e\" ] && printf '%s\\t%s\\n' \"${n:-$e}\" \"$e\"; done; true",
+            + " [ -n \"$e\" ] && printf '%s\\t%s\\t%s\\n' \"$b\" \"${n:-$e}\" \"$e\"; done; true",
             "sh", Quickshell.env("FLO_GREETER_SESSIONS_DIR") || "/usr/share/wayland-sessions"]
         running: true
         stdout: StdioCollector {
@@ -72,11 +84,11 @@ PanelWindow {
                 const lines = text.split("\n");
                 for (let i = 0; i < lines.length; i++) {
                     const f = lines[i].split("\t");
-                    if (f.length !== 2)
+                    if (f.length !== 3 || !win.sessionAllowed(f[0]))
                         continue;
-                    if (f[1] === win.defaultSession)
+                    if (f[2] === win.defaultSession)
                         chosen = out.length;
-                    out.push({ name: f[0], exec: f[1] });
+                    out.push({ id: f[0], name: f[1], exec: f[2] });
                 }
                 win.sessions = out;
                 win.sessionIndex = chosen;

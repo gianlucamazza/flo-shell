@@ -15,6 +15,8 @@ import qs.services
 //   FLO_GREETER_USER          user selected at start (default: the first)
 //   FLO_GREETER_USERS         comma-separated list instead of /etc/passwd
 //   FLO_GREETER_SESSION       session command (default: flo-session)
+//   FLO_GREETER_SESSIONS      session files offered, comma-separated basenames
+//                             without .desktop, "*" for all (default: flo-shell)
 //   FLO_GREETER_SESSIONS_DIR  where to look for *.desktop sessions
 //   FLO_AUTH=dry              fake authentication and launch (development)
 ShellRoot {
