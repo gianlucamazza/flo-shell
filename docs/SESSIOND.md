@@ -247,6 +247,11 @@ dato solo all'utente della sessione.
 
 ## Come lo usa la shell
 
+Implementato in `shell/services/Sessiond.qml` e `shell/services/Apps.qml`
+(dettagli in ARCHITECTURE.md, "Congelamento delle app in background"): i
+punti 1–6 e 8; il 7 (inibizioni automatiche per audio e download) non
+ancora.
+
 1. Avvia le app in uno scope proprio:
    `systemd-run --user --scope --slice=app.slice --unit=app-<id>-<casuale> …`
    e ricorda il nome dell'unità.

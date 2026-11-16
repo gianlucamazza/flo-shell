@@ -24,6 +24,7 @@ shell/
     Notifications.qml  server org.freedesktop.Notifications, storico, popup
     Apps.qml           indice delle applicazioni e ricerca
     Session.qml        blocco, tasto di accensione, inattività, spegni/riavvia/sospendi
+    Sessiond.qml       client di flo-sessiond: congelamento delle app in background
     RotationLock.qml   rotazione manuale 0/90/180/270 tramite l'adattatore
     Keyboard.qml       tastiera a schermo (ponte verso wvkbd)
     Clock.qml          l'unico risveglio periodico (un tick al minuto)
@@ -97,11 +98,15 @@ Un backend è un `QtObject` con:
 | `supportsRotation`, `transformOf(screen)`, `setTransform(screen, t)` | rotazione, `t` = 0..3 come `wl_output` |
 | `supportsDisplayPower`, `setDisplayPower(on)` | pannello acceso/spento |
 | `supportsThumbnails`, `captureSource(w)` | sorgente per `ScreencopyView` o `null` |
+| `supportsPid`, `pidOf(w, cb)` | pid del client della finestra, asincrono: `cb(pid)`, `-1` se ignoto |
 
 `Compositor` espone gli stessi dati più `windowTitle()`, `windowAppId()`,
 `focusWindow()`, `closeWindow()`, `closeActiveWindow()`, `focusWorkspace()`,
 `screenTransform()`, `setScreenTransform()`, `setDisplayPower()`,
-`windowCaptureSource()`.
+`windowCaptureSource()`, `windowPid()` e `supportsWindowPid`. `beforeClose`
+è un aggancio facoltativo, `function(w, done)`, chiamato prima di ogni
+`closeWindow()`: lo installa `Sessiond` per scongelare l'app prima di
+chiederle di chiudersi.
 
 | Capacità | Hyprland | wlr |
 |---|---|---|
@@ -109,6 +114,7 @@ Un backend è un `QtObject` con:
 | Indietro | `sendshortcut , XF86Back, activewindow` (solo configurazione classica) | no |
 | Pannello | `dpms on/off` (solo configurazione classica) | no |
 | Anteprime | `hyprland-toplevel-export-v1` | no |
+| Pid delle finestre | `hyprctl -j clients` (il modulo Hyprland non ha il pid) | no: il freezer non viene guidato |
 
 **Panoramica.** `Compositor.showAppSwitcher()` usa il selettore del backend
 se esiste; altrimenti emette `appSwitcherRequested`, a cui `shell.qml`
@@ -143,13 +149,16 @@ legati nel compositore e per le prove:
 | `overview` (o `appSwitcher`) | apre/chiude la panoramica |
 | `back` | chiude un pannello, altrimenti `Compositor.goBack()` |
 | `lock` | blocca la sessione |
+| `idleInhibit true\|false` | per le prove automatiche: niente blocco né spegnimento per inattività finché è attivo; non sblocca mai |
+| `launch <id desktop>` | avvia un'app come il launcher (scope systemd compreso); `queued` se l'indice delle app non è ancora pronto |
+| `closeWindow <indice>` | chiude la finestra `Compositor.windows[indice]` (prove) |
 | `powerKey` | pressione breve: blocca e spegne il pannello; da bloccato, accende/spegne il pannello |
 | `powerKeyLong` | pressione lunga: menu di alimentazione (non da bloccato) |
 | `rotate <gradi>`, `rotateNext` | rotazione a 0/90/180/270, o la successiva |
 | `keyboard on|off|toggle` | tastiera a schermo |
 | `workspace <id>` | area di lavoro |
 | `volume <±percento>`, `mute`, `brightness <±percento>`, `osd <volume\|brightness>` | livelli |
-| `state` | stato in JSON |
+| `state` | stato in JSON (anche `idleInhibited`, `appScopes`, `sessiond: { connected, policy, foreground }`) |
 | `authInput <testo\|ENTER\|abc>` | solo sviluppo (`FLO_DEV_INPUT=1`): scrive nel tastierino del blocco |
 
 Il greeter ha un proprio bersaglio `flo` con `state`, `user <nome>`,
@@ -179,6 +188,8 @@ un'autenticazione riuscita.
   password, secondo fattore) interrompe il tentativo.
 - **Inattività**: `IdleMonitor` (ext-idle-notify) blocca e spegne il pannello
   dopo `Session.idleSeconds` (120 s; `FLO_IDLE_LOCK=0` lo disattiva).
+  L'IPC `idleInhibit true` lo sospende (prove automatiche); il compositore
+  non ha una gestione dell'inattività propria, quindi basta questo.
 - **Tasto di accensione**: vedi `session/hyprland.conf`. La pressione breve
   è legata al rilascio; il rilascio che segue una pressione lunga viene
   ignorato dalla shell (finestra di 1,5 s).
@@ -205,10 +216,16 @@ Quickshell): crea la sessione per l'utente scelto, risponde al prompt, poi
   (`FLO_GREETER_USERS=a,b` sostituisce l'elenco, `FLO_GREETER_USER` sceglie
   quello iniziale).
 - Sessioni: i file `*.desktop` in `/usr/share/wayland-sessions`
-  (`FLO_GREETER_SESSIONS_DIR`); è preselezionata quella il cui `Exec` è
-  `FLO_GREETER_SESSION` (predefinito `flo-session`), che è anche il comando
-  usato se la cartella è vuota. Phosh resta quindi selezionabile. Il comando
-  viene avviato come `/bin/sh -c "exec <Exec>"`.
+  (`FLO_GREETER_SESSIONS_DIR`), ma solo quelli ammessi: per nome del file
+  senza `.desktop`, predefinito solo `flo-shell`, così `hyprland.desktop` e
+  `hyprland-uwsm.desktop` del pacchetto Hyprland non compaiono.
+  `FLO_GREETER_SESSIONS=flo-shell,phosh` cambia l'elenco, `*` li ammette
+  tutti. I file con `Hidden=true` o `NoDisplay=true` sono sempre esclusi. È
+  preselezionata la sessione il cui `Exec` è `FLO_GREETER_SESSION`
+  (predefinito `flo-session`), che è anche il comando usato se non resta
+  nessun file. Con una sola sessione la scelta non viene mostrata. Il
+  comando passa a greetd come una sola stringa, che greetd esegue con
+  `/bin/sh -c`.
 - greetd lo avvia dentro un Hyprland minimo
   (`session/greeter-hyprland.conf`, esempio in `session/greetd/config.toml`).
 
@@ -313,8 +330,59 @@ con la stessa lingua, così etichette e date non si mescolano più. Uso:
 | `FLO_KEYBOARD_CMD` | comando della tastiera a schermo |
 | `FLO_LANG=it\|en` | lingua dell'interfaccia |
 | `FLO_DEV_INPUT=1` | abilita l'IPC `authInput` (solo sviluppo) |
-| `FLO_GREETER_USER`, `FLO_GREETER_USERS`, `FLO_GREETER_SESSION`, `FLO_GREETER_SESSIONS_DIR` | greeter |
+| `FLO_GREETER_USER`, `FLO_GREETER_USERS`, `FLO_GREETER_SESSION`, `FLO_GREETER_SESSIONS`, `FLO_GREETER_SESSIONS_DIR` | greeter |
+| `FLO_SESSIOND_SOCKET` | socket di flo-sessiond (predefinito `/run/flo-sessiond.sock`, come per `floctl`) |
+| `FLO_SESSIOND=0` | la shell non si collega a flo-sessiond |
+| `FLO_APP_SCOPE=0` | app avviate senza scope systemd (`DesktopEntry.execute()`) |
 | `FLO_HYPRLAND_CONF`, `FLO_SHELL_DATA` | file di configurazione per `flo-session`, cartella dati per gli script |
+
+## Congelamento delle app in background
+
+La politica è in `flo-sessiond` ([SESSIOND.md](SESSIOND.md)); la shell gli
+dice solo quale app è in primo piano.
+
+- **Avvio in uno scope.** `Apps.launch()` esegue
+  `systemd-run --user --scope --quiet --collect --slice=app.slice
+  --unit=app-<id>-<casuale> -- <comando>`: `<id>` è l'id desktop con
+  l'escape di systemd (`-` diventa `\x2d`), `<comando>` è
+  `DesktopEntry.command` con la cartella di lavoro dell'entry (`Path=`),
+  cioè quello che fa `execute()`; l'ambiente è quello della shell, e con
+  `--scope` è `systemd-run` stesso a eseguire il comando. Al primo uso un
+  controllo (`systemd-run` presente e `systemctl --user` raggiungibile)
+  decide; senza systemd si usa `execute()`.
+- **Client** (`services/Sessiond.qml`): apre il socket, manda
+  `freeze-policy on`, poi `lock on` se la sessione è bloccata e il primo
+  piano. A ogni cambio di finestra attiva chiede il pid all'adattatore
+  (`hyprctl -j clients`), legge `/proc/<pid>/cgroup` e manda
+  `foreground <unità>`, cioè il primo componente sotto `app.slice`, oppure
+  `foreground -` se la finestra non è in uno scope di app. Se il pid non si
+  trova non manda nulla (meglio che congelare l'app visibile). Blocco e
+  sblocco: `lock on`/`lock off`. Prima di chiudere una finestra:
+  `thaw <unità>` e solo dopo la richiesta di chiusura (al più 1 s di
+  attesa). All'avvio di un'app: `boost 500`.
+- **Connessione.** Prima di collegarsi controlla che il file del socket
+  esista (`test -S`), perché `Socket` di Quickshell scrive un avviso a ogni
+  tentativo fallito. Se cade (demone riavviato) riprova dopo 1, 2, 4 … 64 s,
+  al più 8 volte, poi una riga nel log e nulla finché non si avvia un'app o
+  si sblocca la sessione: nessun timer periodico. Se un altro client tiene
+  la politica (`ERR busy`) riprova allo stesso modo.
+- **Backend senza pid** (`wlr`): la politica non viene presa, perché la
+  shell non saprebbe quale app è visibile.
+- `misc:enable_anr_dialog = false` in `session/hyprland.conf`: un client
+  congelato non risponde ai ping.
+
+Configurazione del tablet: `/etc/flo-sessiond.conf` con
+
+```
+freezer_enabled = yes
+freezer_root = /sys/fs/cgroup/user.slice/user-10000.slice/user@10000.service/app.slice
+freezer_grace_ms = 10000
+```
+
+(sono i valori predefiniti; `freezer_root` va corretto se l'uid
+dell'utente non è 10000), `flo-sessiond.socket` abilitato e l'utente nel
+gruppo `flo-session` (poi rientrare nella sessione). La prova a mano è in
+TESTING.md, sezione 12.
 
 ## Esecuzione annidata per lo sviluppo
 
@@ -386,6 +454,10 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
   verticale e 6 in orizzontale; popup delle notifiche in alto al centro in
   verticale e in alto a destra in orizzontale.
 - **Niente rete mobile.** La barra mostra solo Wi-Fi o cavo.
+- **Dispositivi assenti.** Senza uscita audio (nessun sink PipeWire, o solo
+  `auto_null`) la riga del volume delle impostazioni rapide non c'è; senza
+  adattatore Bluetooth non c'è il riquadro. Compaiono da soli se il
+  dispositivo arriva dopo.
 - **Carica.** Barra, riquadro e menu di alimentazione mostrano lo stato di
   carica.
 - **Azioni irreversibili.** Spegni e Riavvia chiedono un secondo tocco.
@@ -412,3 +484,15 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
 - I timer a colpo singolo per la scomparsa dell'OSD e dei popup vengono
   armati da un evento; a riposo non ce ne sono di attivi. Il blocco per
   inattività usa `ext-idle-notify`, non un timer della shell.
+- Freezer: un'app che apre le finestre da un altro processo (servizio
+  attivato via D-Bus, istanza unica già avviata fuori dalla shell, `foot
+  --server`) ha la finestra in un altro cgroup: la shell manda
+  `foreground -` e quello scope non viene mai congelato, ma neppure
+  scongelato apposta. Le app avviate fuori dal launcher non hanno uno scope
+  e non vengono toccate.
+- Freezer: `foreground` parte quando Hyprland ha già dato il fuoco alla
+  finestra, non prima: un'app appena tornata in primo piano può mostrare
+  per qualche millisecondo l'ultimo fotogramma prima dello scongelamento.
+- Freezer: nessuna inibizione automatica per audio o download (punto 7 di
+  SESSIOND.md "Come lo usa la shell"): un lettore musicale in background
+  viene congelato dopo la grazia; per ora `floctl inhibit`.

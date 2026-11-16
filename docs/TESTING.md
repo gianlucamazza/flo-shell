@@ -28,6 +28,10 @@ portatile; **[solo IPC]** = la logica è stata eseguita, il gesto no.
      sessione, ad esempio `doas rc-service greetd restart`;
    - schermo nero: premere il tasto di accensione; altrimenti
      `hyprctl --instance 0 dispatch dpms on`.
+5. Per prove lunghe o automatiche via SSH: `flo-shell msg idleInhibit true`
+   evita il blocco e lo spegnimento per inattività (non sblocca nulla);
+   `flo-shell msg idleInhibit false` alla fine. Lo stato è in
+   `flo-shell msg state` (`idleInhibited`).
 
 ## 1. Avvio della sessione **[mai provato]**
 
@@ -39,6 +43,7 @@ portatile; **[solo IPC]** = la logica è stata eseguita, il gesto no.
 | Aprire due applicazioni dal launcher | ognuna occupa tutto lo spazio tra le barre; la seconda copre la prima |
 | `flo-shell msg state` da SSH | JSON con `"compositor":"hyprland"`, `"rotationSupported":true` |
 | `pkill -x quickshell` | la shell ricompare entro un paio di secondi |
+| Modificare un file della shell mentre gira (ricaricamento a caldo) | nessuna riga `Unable to assign [undefined]` da `Clock.qml` |
 | Log: `journalctl`/output di greetd | nessuna riga `WARN`/`ERROR` di QML |
 
 ## 2. Gesti sulle barre **[solo IPC]**
@@ -89,7 +94,9 @@ tenendo una seconda via di accesso (SSH).
 | Cosa fare | Cosa deve succedere |
 |---|---|
 | Riavviare greetd | Hyprland minimo, poi la schermata di accesso: ora, utente evidenziato, tastierino |
-| Più utenti o più sessioni installate (Phosh) | compaiono come pulsanti; il tocco cambia la selezione |
+| Schermata di accesso con Hyprland installato | **nessuna** scelta di sessione: `hyprland.desktop` e `hyprland-uwsm.desktop` non compaiono, c'è solo flo-shell e quindi niente pulsanti |
+| `FLO_GREETER_SESSIONS=flo-shell,phosh` davanti al comando del greeter in `/etc/greetd/config.toml`, riavviare greetd | compaiono i pulsanti flo-shell e Phosh; il tocco cambia la selezione. Con `*` compaiono tutte le sessioni tranne quelle con `Hidden=true`/`NoDisplay=true` |
+| Più utenti | compaiono come pulsanti; il tocco cambia la selezione |
 | Codice sbagliato | "Codice errato", si può riprovare |
 | Codice giusto | "Avvio della sessione…", il greeter sparisce e parte la sessione scelta |
 | Schermo nero al posto del greeter | l'utente `greetd` non ha accesso a video/input/seat: controllare gruppi e seatd/elogind; log in `/var/log/greetd*` o `journalctl -u greetd` |
@@ -160,7 +167,38 @@ Serve il pacchetto `wvkbd`.
 | Sistema in italiano (`LANG=it_IT.UTF-8`) | etichette in italiano e date come "dom 15 nov" |
 | `FLO_LANG=en` nell'ambiente della sessione | tutto in inglese, date comprese |
 
-## 11. Regole di progetto da ricontrollare a occhio
+## 11. Impostazioni rapide senza audio e Bluetooth
+
+| Cosa fare | Cosa deve succedere |
+|---|---|
+| Aprire le impostazioni rapide (oggi il tablet non ha scheda audio né Bluetooth) | nessuna riga del volume, nessun riquadro Bluetooth: Wi-Fi, Ruota, Alimentazione e luminosità soltanto; nessuno spazio vuoto tra i controlli |
+| `wpctl status` | conferma: nessun sink in "Sinks" |
+| Collegare un adattatore Bluetooth USB o una scheda audio (quando ci sarà), con il pannello aperto | il riquadro o la riga compaiono senza riavviare la shell |
+
+## 12. Congelamento delle app (flo-sessiond) **[provato sul portatile con un albero cgroup finto]**
+
+Preparazione (vedi SESSIOND.md, "Prova sul tablet", passo 1):
+`flo-sessiond.socket` abilitato, l'utente nel gruppo `flo-session` (poi
+rientrare nella sessione), in `/etc/flo-sessiond.conf`
+`freezer_enabled = yes` e `freezer_root` con l'uid dell'utente (predefinito
+10000). Per non aspettare 10 s si può mettere `freezer_grace_ms = 3000` e
+riavviare il servizio. `A=/sys/fs/cgroup/user.slice/user-10000.slice/user@10000.service/app.slice`.
+
+| Cosa fare | Cosa deve succedere |
+|---|---|
+| `flo-shell msg state` | `"appScopes":true`, `"sessiond":{"connected":true,"policy":true,…}`. Se `connected` è `false`: `ls -l /run/flo-sessiond.sock` (gruppo `flo-session`), `id` (l'utente è nel gruppo?), log della shell (`flo-sessiond: not available …`) |
+| Aprire due app dal launcher (es. terminale e Impostazioni) | `ls $A` mostra due `app-<id>-<casuale>.scope`; `"foreground"` nello stato è lo scope della seconda |
+| Lasciare in primo piano la seconda per più della grazia | `cat $A/app-<prima>*/cgroup.freeze` dà `1`, `grep frozen $A/app-<prima>*/cgroup.events` dà `frozen 1`; `top`: la prima a 0 % |
+| Tornare alla prima (panoramica o launcher) | si ridisegna subito e risponde al tocco; il suo `cgroup.freeze` torna `0` subito, quello della seconda va a `1` dopo la grazia |
+| Nessun avviso "l'applicazione non risponde" di Hyprland sulla app congelata | (`misc:enable_anr_dialog = false`) |
+| Panoramica: chiudere la scheda dell'app congelata | la finestra si chiude entro un secondo, lo scope sparisce da `$A` |
+| Bloccare lo schermo | `floctl status \| grep freezer.locked` dà `1` e tutti i `cgroup.freeze` sono `0`; sbloccando si torna a congelare dopo la grazia |
+| `systemctl restart flo-sessiond` | tutto scongelato; entro pochi secondi `state` torna `connected`/`policy` `true` e il congelamento riprende |
+| `pkill -x quickshell` | tutto scongelato subito (il demone perde il proprietario); la shell riavviata riprende la politica |
+| App audio o download in background | viene congelata anche lei (nessuna inibizione automatica ancora): annotare quali app ne soffrono |
+| `top` a schermo fermo | `quickshell` e `flo-sessiond` a 0 % anche con la politica attiva |
+
+## 13. Regole di progetto da ricontrollare a occhio
 
 - Nessuna superficie traslucida, sfocata o con ombra; la striscia sopra la
   barra home e sotto la barra di stato è trasparente solo per ricevere il
