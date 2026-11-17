@@ -188,6 +188,15 @@ ne è lo stato: `Session.lock()` lo attiva (menu di alimentazione, tasto di
 accensione, inattività, IPC), `Session.unlock()` lo toglie dopo
 un'autenticazione riuscita.
 
+`Session.lockSecure` segue `WlSessionLock.secure`: distingue la richiesta di
+blocco dalla conferma del compositore. Lo spegnimento richiesto dal tasto o
+dall'inattività resta pendente finché il blocco non è confermato, così il
+primo frame della lock screen può essere presentato. Una richiesta di
+riaccensione o uno sblocco annulla lo spegnimento pendente, anche se la
+conferma arriva più tardi. La riaccensione conserva sempre il requisito PAM.
+`dev/test-session-lock.py` verifica quest'ordine usando il servizio QML reale;
+la conferma e il ciclo DPMS vanno verificati anche sul compositore nativo.
+
 - **Contenuto**: ora, data, batteria, numero di notifiche (mai il contenuto)
   e il tastierino `AuthPad`: numerico per il PIN, con il tasto `abc` che
   passa a un campo di testo con la tastiera interna `KeyGrid`. Sopra una
