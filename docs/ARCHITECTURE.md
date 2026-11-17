@@ -216,9 +216,12 @@ la conferma e il ciclo DPMS vanno verificati anche sul compositore nativo.
   è legata al rilascio; il rilascio che segue una pressione lunga viene
   ignorato dalla shell (finestra di 1,5 s).
 - **Se la shell muore da bloccata** il compositore resta bloccato. La shell
-  scrive `$XDG_RUNTIME_DIR/flo-shell.locked` quando blocca e lo cancella
-  quando sblocca; `flo-shell run` la riavvia, e una shell che trova il file
-  blocca di nuovo subito (serve `misc:allow_session_lock_restore = true`).
+  scrive `locked` in `$XDG_RUNTIME_DIR/flo-shell.locked` prima di richiedere
+  il blocco e lo svuota dopo l'autenticazione. Le scritture sono atomiche e
+  sincrone sul runtime directory: nessun processo di cancellazione può
+  eliminare il marker di un blocco successivo. `flo-shell run` riavvia la
+  shell; un marker non vuoto ripristina il blocco, uno vuoto conserva lo
+  sblocco (serve `misc:allow_session_lock_restore = true`).
 - **Limiti**: da bloccato non si raggiunge il menu di alimentazione (la
   superficie di blocco copre tutto): si sblocca prima, oppure si usa la
   pressione prolungata gestita dal firmware. Nessun conteggio dei tentativi

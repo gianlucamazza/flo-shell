@@ -35,8 +35,13 @@ ShellRoot {
     }
 }
 ''')
+    bindir = root / 'bin'
+    bindir.mkdir()
+    remover = bindir / 'rm'
+    remover.write_text('#!/bin/sh\nsleep 0.3\nexec /usr/bin/rm "$@"\n')
+    remover.chmod(0o755)
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QSG_RHI_BACKEND='software',
-               FLO_STATE_DIR=str(root / 'state'))
+               FLO_STATE_DIR=str(root / 'state'), PATH=str(bindir) + ':' + os.environ['PATH'])
     (root / 'state').mkdir()
     log = (root / 'log').open('w+')
     proc = subprocess.Popen(['dbus-run-session', '--config-file=' + str(SOURCE.parents[2] / 'dev/dbus-session.conf'),
@@ -72,7 +77,46 @@ ShellRoot {
         before = state()['calls']
         call('confirm')
         assert state()['displayOn'] and state()['calls'] == before, 'late acknowledgement overrode a newer wake request'
-        print('session lock: acknowledgement, pending blank and wake ordering passed')
+        # An old asynchronous cleaner must never remove a newer lock marker.
+        call('unlock')
+        call('blank')
+        time.sleep(.5)
+        marker = root / 'state/flo-shell.locked'
+        assert marker.exists() and marker.read_text().strip() == 'locked', 'unlock cleanup removed a newer lock marker'
+        call('unlock')
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=5)
+        proc = subprocess.Popen(['dbus-run-session', '--config-file=' + str(SOURCE.parents[2] / 'dev/dbus-session.conf'),
+                                 '--', 'quickshell', '-p', str(root)], env=env, stdout=log,
+                                stderr=log, start_new_session=True)
+        end = time.monotonic() + 6
+        while True:
+            try:
+                s = state()
+                if s.get('displayOn'):
+                    break
+            except (subprocess.CalledProcessError, json.JSONDecodeError):
+                pass
+            assert time.monotonic() < end, 'Session did not restart'
+            time.sleep(.025)
+        time.sleep(.1)
+        assert not state()['locked'], 'an empty unlock marker relocked a restarted shell'
+        call('blank')
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=5)
+        proc = subprocess.Popen(['dbus-run-session', '--config-file=' + str(SOURCE.parents[2] / 'dev/dbus-session.conf'),
+                                 '--', 'quickshell', '-p', str(root)], env=env, stdout=log,
+                                stderr=log, start_new_session=True)
+        end = time.monotonic() + 6
+        while True:
+            try:
+                if state()['locked']:
+                    break
+            except (subprocess.CalledProcessError, json.JSONDecodeError):
+                pass
+            assert time.monotonic() < end, 'restart lost the active lock marker'
+            time.sleep(.025)
+        print('session lock: acknowledgement, pending blank, wake, marker ordering and restart passed')
     finally:
         os.killpg(proc.pid, signal.SIGTERM)
         proc.wait(timeout=5)

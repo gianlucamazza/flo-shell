@@ -69,10 +69,12 @@ Singleton {
     function lock(): void {
         if (locked)
             return;
+        // Persist before requesting the compositor lock, including a crash
+        // before the first surface has been created.
+        marker.setText("locked\n");
         lockSecure = false;
         lockLoaded = true;
         locked = true;
-        marker.setText("locked\n");
     }
     // Called by the lock screen after a successful authentication.
     function unlock(): void {
@@ -80,7 +82,8 @@ Singleton {
             return;
         locked = false;
         setDisplay(true);
-        cleaner.running = true;
+        // A synchronous atomic tombstone cannot race a subsequent lock.
+        marker.setText("");
     }
 
     function setDisplay(on: bool): void {
@@ -133,13 +136,14 @@ Singleton {
         id: marker
         path: root.markerPath
         printErrors: false
+        blockWrites: true
+        atomicWrites: true
+        onSaveFailed: error => console.warn("flo-session: lock marker write failed", error)
         onLoaded: {
+            if (marker.text().trim() === "")
+                return;
             console.info("flo-session: lock marker found, locking again");
             root.lock();
         }
-    }
-    Process {
-        id: cleaner
-        command: ["rm", "-f", root.markerPath]
     }
 }
