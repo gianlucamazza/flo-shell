@@ -36,6 +36,7 @@ check: all
 	sh -n dev/run-nested.sh
 	python3 dev/test-hyprland-launcher.py
 	python3 dev/test-brightness.py
+	python3 dev/test-session-lock.py
 	sh dev/check-hyprland.sh
 
 install: all

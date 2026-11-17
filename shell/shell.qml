@@ -197,6 +197,7 @@ ShellRoot {
                 powerMenu: Ui.powerMenuOpen,
                 overview: Ui.overviewOpen,
                 locked: Session.locked,
+                lockSecure: Session.lockSecure,
                 displayOn: Session.displayOn,
                 idleInhibited: Session.idleInhibited,
                 rotation: RotationLock.degrees,

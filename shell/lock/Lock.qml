@@ -11,6 +11,9 @@ WlSessionLock {
     id: lock
 
     locked: Session.locked
+    onSecureChanged: Session.lockSecure = secure
+    Component.onCompleted: Session.lockSecure = secure
+    Component.onDestruction: Session.lockSecure = false
 
     WlSessionLockSurface {
         color: Theme.bg
