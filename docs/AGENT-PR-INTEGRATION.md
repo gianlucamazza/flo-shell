@@ -37,3 +37,8 @@ opened the launcher and settings panel and returned to Home; there were no
 failed system or user units. Visual touch verification and an explicitly
 configured remote or local agent session remain pending. No key, secret or
 Crush binary was created during installation.
+
+The integration is proposed in [PR #4](https://github.com/gianlucamazza/flo-shell/pull/4).
+The published `main` branch was merged into the integration branch to clear
+GitHub conflicts. `make check` passed again, and the PR is mergeable but
+remains a draft until the native touch check is confirmed.
