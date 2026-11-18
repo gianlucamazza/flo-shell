@@ -131,7 +131,7 @@ MSG
 WAYLAND_DISPLAY=$sock HYPRLAND_INSTANCE_SIGNATURE=$sig QT_QPA_PLATFORM=wayland \
 FLO_DRY_RUN=1 FLO_BACKLIGHT_DIR="$run/backlight" FLO_DEV_RUN="$run" \
 FLO_AUTH="$auth" FLO_AUTH_DRY_SECRET="$secret" FLO_IDLE_LOCK="${FLO_IDLE_LOCK:-0}" \
-FLO_PAM_CONFIG_DIR="$run/pam" FLO_STATE_DIR="$run" FLO_DEV_INPUT=1 PATH="$PATH" \
+FLO_PAM_CONFIG_DIR="$run/pam" FLO_STATE_DIR="$run" FLO_DEV_INPUT=1 PATH="$here/scripts:$PATH" \
     dbus-run-session --config-file="$here/dev/dbus-session.conf" -- \
     sh -c 'echo "$DBUS_SESSION_BUS_ADDRESS" > "$FLO_DEV_RUN/bus"; echo $$ > "$FLO_DEV_RUN/shell.pid"; exec quickshell -p "$0"' "$root/$entry" &
 session=$!

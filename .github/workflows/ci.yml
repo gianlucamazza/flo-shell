@@ -11,5 +11,9 @@ jobs:
         run: meson setup build/sessiond sessiond && meson test -C build/sessiond --print-errorlogs
       - name: install layout
         run: make install DESTDIR="$PWD/build/pkg" PREFIX=/usr
+      - name: flo-agent-session tests
+        run: sh tests/test_flo_agents.sh
+      - name: qml lint
+        run: python3 tests/qml_lint.py
       - name: shellcheck
-        run: shellcheck -S warning dev/*.sh
+        run: shellcheck -S warning dev/*.sh scripts/*.sh tests/*.sh

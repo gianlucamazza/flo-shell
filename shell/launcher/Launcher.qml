@@ -14,10 +14,18 @@ PanelWindow {
 
     readonly property bool open: Ui.launcherOpen
     property real progress: open ? 1 : 0
-    readonly property var results: Apps.search(search.text)
+    readonly property var results: {
+        // Read tools so this binding re-runs after the one-shot list.
+        const _agents = agents.tools;
+        return agents.matching(search.text).concat(Apps.search(search.text));
+    }
     // True when the search field asked for the on-screen keyboard, so that
     // closing the launcher only hides a keyboard it raised itself.
     property bool raisedKeyboard: false
+
+    Agents {
+        id: agents
+    }
 
     Behavior on progress {
         NumberAnimation {
@@ -26,13 +34,24 @@ PanelWindow {
         }
     }
 
-    function launch(entry: DesktopEntry): void {
-        Apps.launch(entry);
+    function launch(entry: var): void {
+        if (entry && entry.isAgent) {
+            Sessiond.launching();
+            agents.launch(entry.tool);
+        } else {
+            Apps.launch(entry);
+        }
         Ui.launcherOpen = false;
     }
 
+    Component.onCompleted: {
+        if (open)
+            agents.refresh();
+    }
     onOpenChanged: {
-        if (!open) {
+        if (open) {
+            agents.refresh();
+        } else {
             search.text = "";
             search.focus = false;
             if (win.raisedKeyboard)
@@ -88,10 +107,11 @@ PanelWindow {
             delegate: Pressable {
                 id: cell
 
-                required property DesktopEntry modelData
+                required property var modelData
                 // modelData is null for an instant while the model shrinks.
+                readonly property bool isAgent: !!(modelData && modelData.isAgent)
                 readonly property string name: modelData ? modelData.name : ""
-                readonly property string iconSource: modelData ? Apps.iconSource(modelData) : ""
+                readonly property string iconSource: (!modelData || isAgent) ? "" : Apps.iconSource(modelData)
 
                 width: grid.cellWidth
                 height: grid.cellHeight
@@ -106,9 +126,26 @@ PanelWindow {
                     asynchronous: true
                     source: cell.iconSource
                 }
+                // Generic bolt for remote agents: no vendor logos.
+                Rectangle {
+                    visible: cell.isAgent
+                    y: 14
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Theme.appIconSize
+                    height: Theme.appIconSize
+                    radius: Theme.radius
+                    color: Theme.surfaceAlt
+
+                    Icon {
+                        anchors.centerIn: parent
+                        name: "bolt"
+                        size: 28
+                        color: Theme.accent
+                    }
+                }
                 // Fallback when the icon theme has no match.
                 Rectangle {
-                    visible: cell.iconSource === ""
+                    visible: cell.iconSource === "" && !cell.isAgent
                     y: 14
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: Theme.appIconSize
