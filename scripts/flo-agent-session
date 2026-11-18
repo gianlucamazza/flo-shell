@@ -1,0 +1,168 @@
+#!/bin/sh
+# Tiny wrapper around the companion `flo-agents` CLI (nexus7-flo-linux).
+# flo-shell does not implement SSH/mosh; it only lists tools and launches.
+#
+#   flo-agent-session list            id<TAB>label lines; always exits 0
+#   flo-agent-session launch <tool>   run `flo-agents launch <tool>`
+#   flo-agent-session <tool>          same as launch
+#
+# List is silent when the CLI is missing or prints nothing. A nonzero
+# launch posts a freedesktop notification (notify-send); exit 0 does not.
+# No hostnames or addresses are ever printed.
+set -u
+
+usage() {
+	echo "usage: flo-agent-session list | launch <tool> | <tool>" >&2
+	exit 2
+}
+
+label_of() {
+	case "$1" in
+	claude) printf '%s\n' "Claude Code (remote)" ;;
+	codex) printf '%s\n' "Codex (remote)" ;;
+	grok) printf '%s\n' "Grok Build (remote)" ;;
+	*) return 1 ;;
+	esac
+}
+
+valid_id() {
+	case "$1" in
+	"" | *[!A-Za-z0-9_-]*) return 1 ;;
+	esac
+	return 0
+}
+
+trim() {
+	printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+cmd_list() {
+	command -v flo-agents >/dev/null 2>&1 || return 0
+	# Discard CLI stderr: a missing, empty, or noisy tool must not
+	# appear in the shell log.
+	out=$(flo-agents list 2>/dev/null) || return 0
+	[ -n "$out" ] || return 0
+	printf '%s\n' "$out" | while IFS= read -r raw || [ -n "$raw" ]; do
+		id=$(trim "$raw")
+		valid_id "$id" || continue
+		label=$(label_of "$id") || continue
+		printf '%s\t%s\n' "$id" "$label"
+	done
+	return 0
+}
+
+notify_dropped() {
+	tool=$1
+	status=$2
+	title="Agent session dropped"
+	if ! label=$(label_of "$tool"); then
+		label=$tool
+	fi
+	body="$label exited with status $status"
+	if [ -n "${FLO_AGENT_NOTIFY:-}" ]; then
+		notify=$FLO_AGENT_NOTIFY
+	else
+		notify=$(command -v notify-send 2>/dev/null || true)
+	fi
+	[ -n "$notify" ] || return 0
+	"$notify" "$title" "$body" >/dev/null 2>&1 || true
+}
+
+# Re-exec argv inside a terminal already on PATH. Does not install a new
+# emulator: FLO_TERMINAL, then $TERMINAL, then xdg-terminal-exec, then
+# the terminals the nested session already documents (foot, kgx, …).
+term_exec() {
+	term=$1
+	shift
+	case "$term" in
+	foot) exec foot -- "$@" ;;
+	xdg-terminal-exec) exec xdg-terminal-exec "$@" ;;
+	kgx | gnome-console | gnome-terminal) exec "$term" -- "$@" ;;
+	*) exec "$term" -e "$@" ;;
+	esac
+}
+
+wrap_in_terminal() {
+	tool=$1
+	self=$0
+	case "$self" in
+	/*) ;;
+	*)
+		found=$(command -v flo-agent-session 2>/dev/null || true)
+		[ -n "$found" ] && self=$found
+		;;
+	esac
+	export FLO_AGENT_IN_TERM=1
+
+	if [ -n "${FLO_TERMINAL:-}" ]; then
+		termcmd=$FLO_TERMINAL
+		case "$termcmd" in
+		/*) [ -x "$termcmd" ] && term_exec "$termcmd" "$self" launch "$tool" ;;
+		*) command -v "$termcmd" >/dev/null 2>&1 && term_exec "$termcmd" "$self" launch "$tool" ;;
+		esac
+	fi
+	if [ -n "${TERMINAL:-}" ]; then
+		command -v "$TERMINAL" >/dev/null 2>&1 && term_exec "$TERMINAL" "$self" launch "$tool"
+	fi
+	if command -v xdg-terminal-exec >/dev/null 2>&1; then
+		term_exec xdg-terminal-exec "$self" launch "$tool"
+	fi
+	for term in foot kgx gnome-console gnome-terminal weston-terminal; do
+		if command -v "$term" >/dev/null 2>&1; then
+			term_exec "$term" "$self" launch "$tool"
+		fi
+	done
+	# No terminal on PATH: caller notifies and exits 127.
+	return 1
+}
+
+cmd_launch() {
+	tool=$1
+	if ! valid_id "$tool"; then
+		echo "flo-agent-session: invalid tool id" >&2
+		return 2
+	fi
+
+	if [ -z "${FLO_AGENT_IN_TERM:-}" ] && [ ! -t 1 ]; then
+		if wrap_in_terminal "$tool"; then
+			return 0
+		fi
+		# No terminal on PATH: do not run the session headless.
+		notify_dropped "$tool" 127
+		return 127
+	fi
+
+	if ! command -v flo-agents >/dev/null 2>&1; then
+		notify_dropped "$tool" 127
+		return 127
+	fi
+
+	flo-agents launch "$tool"
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		notify_dropped "$tool" "$status"
+	fi
+	return "$status"
+}
+
+cmd=${1:-}
+status=0
+case "$cmd" in
+list)
+	cmd_list
+	status=$?
+	;;
+launch)
+	[ $# -ge 2 ] || usage
+	cmd_launch "$2"
+	status=$?
+	;;
+"" | -h | --help)
+	usage
+	;;
+*)
+	cmd_launch "$cmd"
+	status=$?
+	;;
+esac
+exit "$status"

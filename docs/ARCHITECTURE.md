@@ -31,7 +31,9 @@ shell/
     Ui.qml             stato dei pannelli e dell'OSD
   components/          Pressable, IconButton, LevelSlider, ToggleTile, Icon,
                        EdgeArea, KeyGrid (tastiera QWERTY interna)…
-  bar/ home/ launcher/ quicksettings/ notifications/ osd/ power/
+  bar/ home/
+  launcher/            Launcher, Agents (voci flo-agents, una lettura all'apertura)
+  quicksettings/ notifications/ osd/ power/
   overview/            Overview, WindowCard, Thumbnail
   lock/                Lock (sessione bloccata), LockScreen, AuthPad, Auth
     auth/              PamAuth, GreetdAuth, DryAuth
@@ -52,6 +54,8 @@ dev/
   run-nested.sh        esecuzione annidata per lo sviluppo
   hyprland-nested.conf / .lua   configurazione del compositore annidato
   pam-check.sh, fake-greetd.py, fake-wvkbd.sh   controparti finte per le prove
+scripts/
+  flo-agent-session    wrapper: `flo-agents list` / `flo-agents launch`
 Makefile               install / uninstall / check
 ```
 
@@ -360,6 +364,8 @@ con la stessa lingua, così etichette e date non si mescolano più. Uso:
 | `FLO_SESSIOND=0` | la shell non si collega a flo-sessiond |
 | `FLO_APP_SCOPE=0` | app avviate senza scope systemd (`DesktopEntry.execute()`) |
 | `FLO_HYPRLAND_CONF`, `FLO_SHELL_DATA` | file di configurazione per `flo-session`, cartella dati per gli script |
+| `FLO_TERMINAL` | emulatore di terminale per `flo-agent-session` (altrimenti `$TERMINAL`, `xdg-terminal-exec`, `foot`, …) |
+| `FLO_AGENT_IN_TERM=1` | non riaprire un terminale: `flo-agents launch` gira qui (prove) |
 
 ## Congelamento delle app in background
 

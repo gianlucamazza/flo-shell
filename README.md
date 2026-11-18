@@ -16,3 +16,10 @@ Il codice non dipende direttamente dal SoC APQ8064, ma layout, greeter e
 configurazioni sono progettati per il Nexus 7 (2013). Per altri dispositivi
 Wayland servono adattamenti. Le prove Hyprland annidate su un computer sono
 documentate in `dev/`.
+
+## Agenti nel launcher
+
+Le voci degli agenti remoti appaiono solo quando il comando complementare
+`flo-agents` è installato e configurato. `flo-shell` mostra l'elenco e avvia
+`flo-agent-session`; configurazione e connessione SSH restano responsabilità
+del CLI. L'integrazione grafica non dimostra ancora un avvio nativo sul tablet.

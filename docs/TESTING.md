@@ -215,7 +215,23 @@ riavviare il servizio. `A=/sys/fs/cgroup/user.slice/user-10000.slice/user@10000.
 | App audio o download in background | viene congelata anche lei (nessuna inibizione automatica ancora): annotare quali app ne soffrono |
 | `top` a schermo fermo | `quickshell` e `flo-sessiond` a 0 % anche con la politica attiva |
 
-## 13. Regole di progetto da ricontrollare a occhio
+## 13. Agenti remoti (`flo-agents`) **[solo CLI finto in CI]**
+
+Senza `flo-agents` sul PATH il launcher non mostra voci agente e il log
+di Quickshell resta pulito. Con il CLI configurato:
+
+| Cosa fare | Cosa deve succedere |
+|---|---|
+| `flo-agents list` stampa `claude` / `codex` / `grok` | all'apertura del launcher compaiono "Claude Code (remote)", "Codex (remote)", "Grok Build (remote)" con l'icona fulmine, senza loghi |
+| Toccare una voce | si apre il terminale della sessione su `flo-agents launch <tool>` |
+| Chiudere la sessione con successo (exit 0) | nessuna notifica |
+| Far fallire il CLI (exit ≠ 0) | notifica titolo "Agent session dropped", corpo con lo strumento e il codice, senza host |
+| `flo-agents` assente o lista vuota | nessuna voce agente |
+| `top` a schermo fermo col launcher chiuso | nessun processo `flo-agents` o timer della shell |
+
+Le prove automatiche sono `sh tests/test_flo_agents.sh` (CLI e `notify-send` finti).
+
+## 14. Regole di progetto da ricontrollare a occhio
 
 - Nessuna superficie traslucida, sfocata o con ombra; la striscia sopra la
   barra home e sotto la barra di stato è trasparente solo per ricevere il

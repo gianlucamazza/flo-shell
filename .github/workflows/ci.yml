@@ -1,0 +1,19 @@
+name: ci
+on: [push, pull_request]
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y meson ninja-build gcc shellcheck
+      - name: flo-sessiond build and tests
+        run: meson setup build/sessiond sessiond && meson test -C build/sessiond --print-errorlogs
+      - name: install layout
+        run: make install DESTDIR="$PWD/build/pkg" PREFIX=/usr
+      - name: flo-agent-session tests
+        run: sh tests/test_flo_agents.sh
+      - name: qml lint
+        run: python3 tests/qml_lint.py
+      - name: shellcheck
+        run: shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session
