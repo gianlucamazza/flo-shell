@@ -119,7 +119,14 @@ devono cambiare `dpmsStatus` in `hyprctl -j monitors`. Eseguire i comandi
 solo sull'istanza annidata indicata dallo script. Prima di aggiornare
 Hyprland sul tablet ripetere le prove touch e tasti fisici della sezione 3.
 
-## 5. Panoramica **[solo IPC; tocco e trascinamento mai provati]**
+## 5. Panoramica **[selezione al tocco verificata; trascinamento da provare]**
+
+Il 18 novembre 2026, con due finestre reali (Impostazioni ed Epiphany), il
+pulsante **App aperte** ha mostrato la panoramica e il tocco su entrambe le
+schede ha riportato l'app corretta in primo piano, reattiva al touch. La
+prova via IPC ha confermato anche la corrispondenza tra finestra attiva di
+Hyprland e unità in primo piano di flo-sessiond. In ambiente annidato,
+`dev/test-app-switcher.py` ripete l'apertura e la selezione di due app.
 
 | Cosa fare | Cosa deve succedere |
 |---|---|
