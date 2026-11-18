@@ -42,3 +42,14 @@ The integration is proposed in [PR #4](https://github.com/gianlucamazza/flo-shel
 The published `main` branch was merged into the integration branch to clear
 GitHub conflicts. `make check` passed again, and the PR is mergeable but
 remains a draft until the native touch check is confirmed.
+
+The agent settings panel now separates **Remote** from **On tablet**. Remote
+shows host, user, agent choice, device key, and connection results; port,
+transport, command overrides, and tmux are grouped under **Advanced options**.
+The local view shows Crush installation, provider, model, and API key; removal
+of a saved key and Crush uninstallation are under its own Advanced options.
+Unsaved edits survive view switches. The connection test is available only
+after remote changes are saved, so it cannot silently test stale settings.
+The CLI remains the sole configuration writer, and API keys still pass through
+stdin. A nested 600×960 run showed both views without QML load errors. Tablet
+touch and package verification for this revised layout remain pending.
