@@ -29,7 +29,11 @@ classic/Lua Hyprland configurations. A lint bug in PR #2 skipped all QML
 files when the checkout path contained a directory called `build`; the
 integration fixes the scan to inspect paths relative to the repository.
 
-The companion CLI is present on `nexus7-flo-linux` `main`, but is not in the
-current resolution branch or installed on the tablet. UI integration is
-therefore complete only at source level; native agent behavior is pending
-companion packaging and device tests.
+The companion CLI has since been imported into the project's resolution
+branch, packaged separately as `flo-agents-0.1_git20261118-r0` and installed
+on the tablet with `flo-shell-0.1_git20261118-r1`. With no agent config,
+`flo-agent-config entries` returns only `Configure agents`. Native IPC
+opened the launcher and settings panel and returned to Home; there were no
+failed system or user units. Visual touch verification and an explicitly
+configured remote or local agent session remain pending. No key, secret or
+Crush binary was created during installation.

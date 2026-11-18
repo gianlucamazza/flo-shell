@@ -30,11 +30,11 @@
 - [x] Apply PR #1, #2, #3 onto the tablet branch in order.
 - [x] Resolve conflicts by retaining tablet fixes and the PR feature behavior.
 - [x] Run the PR tests and all existing tests; fix failures.
-- [ ] Commit the integrated source.
+- [x] Commit the integrated source.
 
 ### Task 2: Stage and review package
 
 - [x] Run `make install` into a temporary directory and inspect scripts, QML and both Hyprland formats.
-- [ ] Compare the resulting tree with the currently installed package before any device change.
-- [ ] Document remaining CLI and native tablet test dependencies.
-- [ ] Publish an integration branch for review.
+- [x] Compare the resulting tree with the currently installed package before any device change.
+- [x] Document remaining CLI and native tablet test dependencies.
+- [x] Publish an integration branch for review.
