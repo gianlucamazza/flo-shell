@@ -43,11 +43,14 @@ ShellRoot {
         }
         function onWindowsChanged(): void {
             const count = Compositor.windows.length;
-            // A newly mapped app may not gain keyboard focus while Home's
+            // A newly mapped window may not gain keyboard focus while Home's
             // layer is focused. Reveal it without waiting for that focus.
-            if (count > root.knownWindows && !Ui.keepHome)
-                Ui.showApplication();
-            else if (count === 0 && Ui.launchingName === "")
+            if (count > root.knownWindows) {
+                // Dialogs are normal windows; a shell panel must not cover them.
+                Ui.closeAll();
+                if (!Ui.keepHome)
+                    Ui.showApplication();
+            } else if (count === 0 && Ui.launchingName === "")
                 Ui.home();
             root.knownWindows = count;
         }
