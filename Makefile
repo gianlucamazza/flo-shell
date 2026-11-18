@@ -36,6 +36,9 @@ check: all
 	sh -n dev/run-nested.sh
 	sh tests/test_flo_agents.sh
 	python3 tests/qml_lint.py
+	@if command -v shellcheck > /dev/null 2>&1; then \
+		shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session; \
+	fi
 	@if command -v Hyprland > /dev/null 2>&1; then \
 		Hyprland --verify-config -c session/hyprland.conf | tail -n 1; \
 		Hyprland --verify-config -c session/greeter-hyprland.conf | tail -n 1; \

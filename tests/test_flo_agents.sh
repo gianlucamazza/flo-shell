@@ -124,6 +124,14 @@ check "$out" "$(printf 'claude\tClaude Code (remote)\ncodex\tCodex (remote)')" \
 	"list drops ids that are not simple tool names"
 check "$(cat "$work/err")" "" "unsafe ids are silent on stderr"
 
+# Unknown but well-formed ids are skipped (flo-agents only knows
+# claude, codex and grok).
+printf 'claude\ngemini\ncodex\n' > "$work/tools.list"
+out=$("$script" list 2>"$work/err")
+check "$out" "$(printf 'claude\tClaude Code (remote)\ncodex\tCodex (remote)')" \
+	"list skips unknown tool ids"
+check "$(cat "$work/err")" "" "unknown ids are silent on stderr"
+
 # list that fails (CLI present but misconfigured): still empty, no stderr.
 FAKE_AGENTS_LIST_EXIT=1
 export FAKE_AGENTS_LIST_EXIT

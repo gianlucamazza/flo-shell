@@ -21,7 +21,7 @@ label_of() {
 	claude) printf '%s\n' "Claude Code (remote)" ;;
 	codex) printf '%s\n' "Codex (remote)" ;;
 	grok) printf '%s\n' "Grok Build (remote)" ;;
-	*) printf '%s\n' "$1 (remote)" ;;
+	*) return 1 ;;
 	esac
 }
 
@@ -45,7 +45,8 @@ cmd_list() {
 	printf '%s\n' "$out" | while IFS= read -r raw || [ -n "$raw" ]; do
 		id=$(trim "$raw")
 		valid_id "$id" || continue
-		printf '%s\t%s\n' "$id" "$(label_of "$id")"
+		label=$(label_of "$id") || continue
+		printf '%s\t%s\n' "$id" "$label"
 	done
 	return 0
 }
@@ -54,7 +55,10 @@ notify_dropped() {
 	tool=$1
 	status=$2
 	title="Agent session dropped"
-	body="$(label_of "$tool") exited with status $status"
+	if ! label=$(label_of "$tool"); then
+		label=$tool
+	fi
+	body="$label exited with status $status"
 	if [ -n "${FLO_AGENT_NOTIFY:-}" ]; then
 		notify=$FLO_AGENT_NOTIFY
 	else

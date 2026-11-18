@@ -16,4 +16,4 @@ jobs:
       - name: qml lint
         run: python3 tests/qml_lint.py
       - name: shellcheck
-        run: shellcheck -S warning dev/*.sh scripts/*.sh tests/*.sh
+        run: shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session
