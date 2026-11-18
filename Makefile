@@ -7,7 +7,7 @@
 #   $(DATADIR)/greeter    Quickshell configuration of the greeter (symlinks
 #                         into ../shell for everything it shares)
 #   $(DATADIR)/session    Hyprland configurations
-#   $(BINDIR)             flo-shell, flo-session
+#   $(BINDIR)             flo-shell, flo-session, flo-agent-session
 #   $(SESSIONDIR)         flo-shell.desktop
 #   $(SYSCONFDIR)/pam.d   PAM service of the lock screen
 #   $(DOCDIR)             greetd configuration example
@@ -32,7 +32,13 @@ build/%: session/%.in
 check: all
 	sh -n build/flo-shell
 	sh -n build/flo-session
+	sh -n scripts/flo-agent-session
 	sh -n dev/run-nested.sh
+	sh tests/test_flo_agents.sh
+	python3 tests/qml_lint.py
+	@if command -v shellcheck > /dev/null 2>&1; then \
+		shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session; \
+	fi
 	@if command -v Hyprland > /dev/null 2>&1; then \
 		Hyprland --verify-config -c session/hyprland.conf | tail -n 1; \
 		Hyprland --verify-config -c session/greeter-hyprland.conf | tail -n 1; \
@@ -49,7 +55,7 @@ install: all
 	find $(DESTDIR)$(DATADIR) -type d -exec chmod 755 {} +
 	find $(DESTDIR)$(DATADIR) -type f -exec chmod 644 {} +
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(SESSIONDIR) $(DESTDIR)$(SYSCONFDIR)/pam.d $(DESTDIR)$(DOCDIR)
-	install -m 755 build/flo-shell build/flo-session $(DESTDIR)$(BINDIR)/
+	install -m 755 build/flo-shell build/flo-session scripts/flo-agent-session $(DESTDIR)$(BINDIR)/
 	install -m 644 session/flo-shell.desktop $(DESTDIR)$(SESSIONDIR)/
 	mkdir -p $(DESTDIR)$(USERUNITDIR)
 	install -m 644 session/flo-shell-session.target $(DESTDIR)$(USERUNITDIR)/
@@ -58,7 +64,7 @@ install: all
 
 uninstall:
 	rm -rf $(DESTDIR)$(DATADIR) $(DESTDIR)$(DOCDIR)
-	rm -f $(DESTDIR)$(BINDIR)/flo-shell $(DESTDIR)$(BINDIR)/flo-session
+	rm -f $(DESTDIR)$(BINDIR)/flo-shell $(DESTDIR)$(BINDIR)/flo-session $(DESTDIR)$(BINDIR)/flo-agent-session
 	rm -f $(DESTDIR)$(USERUNITDIR)/flo-shell-session.target
 	rm -f $(DESTDIR)$(SESSIONDIR)/flo-shell.desktop $(DESTDIR)$(SYSCONFDIR)/pam.d/flo-shell
 

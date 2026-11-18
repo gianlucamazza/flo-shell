@@ -17,6 +17,7 @@ roadmap: [ROADMAP.md](https://github.com/gianlucamazza/nexus7-flo-linux/blob/mai
 - `greeter/` – greetd greeter (shares components with the shell)
 - `session/` – Hyprland, greetd and PAM configuration, session scripts
 - `sessiond/` – `flo-sessiond` (C, meson) and its tests
+- `scripts/` – `flo-agent-session`, the launcher helper for remote agents
 - `dev/` – nested Hyprland and fake greetd helpers for testing on a desktop
 - `docs/` – architecture, plan, testing on the tablet
 
@@ -28,6 +29,25 @@ meson setup build/sessiond sessiond && meson compile -C build/sessiond
 ```
 
 See `docs/TESTING.md` for checks to run on the device.
+
+## Agents (remote)
+
+flo-shell does not implement SSH or mosh. A companion CLI, `flo-agents`
+(in [nexus7-flo-linux](https://github.com/gianlucamazza/nexus7-flo-linux)),
+opens those sessions on a 64-bit host. Configure it with `flo-agents setup`.
+
+When `flo-agents` is on PATH and `flo-agents list` prints tool ids
+(`claude`, `codex`, `grok`), the launcher shows one entry per tool:
+Claude Code (remote), Codex (remote), Grok Build (remote). Tapping an
+entry opens the session terminal already used by the shell, running
+`flo-agent-session`, which calls `flo-agents launch <tool>`. A nonzero
+exit posts a notification titled “Agent session dropped”; a clean exit
+does not. If the CLI is missing or the list is empty, the launcher
+shows no agent entries and writes nothing to the log.
+
+The list is read once when the launcher opens. There is no extra
+daemon, no polling, and the added memory is negligible (a one-shot
+process and a few launcher rows).
 
 ## Portability
 

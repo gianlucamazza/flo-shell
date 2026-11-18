@@ -132,6 +132,18 @@ memoria. Portali e agente polkit. Sospensione e risveglio.
 locali (`flo-shell`, `quickshell`, sessione), documentazione, sessione
 predefinita. Phosh rimosso solo su decisione esplicita.
 
+**Agenti remoti (milestone 1, in parallelo).** La shell non apre da sé
+sessioni SSH/mosh: chiama il CLI `flo-agents` del progetto
+`nexus7-flo-linux`. Il launcher, all'apertura, legge una volta
+`flo-agents list` e mostra una voce per strumento configurato
+(Claude Code, Codex, Grok Build). L'attivazione apre il terminale già
+in uso sulla sessione con `flo-agent-session`, che esegue
+`flo-agents launch <tool>` e, se l'uscita non è 0, invia una notifica
+«Agent session dropped». Nessun demone nuovo, nessun polling. Costo in
+RAM trascurabile (un processo di lista a ogni apertura del launcher,
+poi niente). Se `flo-agents` manca o la lista è vuota, nessuna voce e
+nessun errore nei log.
+
 ## Misura
 
 - Tempi di fotogramma dal compositore; tracce `perf`/ftrace per i casi lenti.
