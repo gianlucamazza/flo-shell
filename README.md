@@ -19,7 +19,11 @@ documentate in `dev/`.
 
 ## Agenti nel launcher
 
-Le voci degli agenti remoti appaiono solo quando il comando complementare
-`flo-agents` è installato e configurato. `flo-shell` mostra l'elenco e avvia
-`flo-agent-session`; configurazione e connessione SSH restano responsabilità
-del CLI. L'integrazione grafica non dimostra ancora un avvio nativo sul tablet.
+Le voci degli agenti appaiono solo quando il comando complementare
+`flo-agents` è installato. Prima della configurazione compare soltanto
+**Configura agenti**; dopo, il launcher mostra gli strumenti disponibili
+e **Impostazioni agenti**. Le impostazioni touch passano i valori al CLI
+tramite argomenti separati; la chiave API passa solo su stdin. `flo-shell`
+non gestisce direttamente SSH, mosh o i file di configurazione. Crush
+locale usa lo stesso launcher, se il CLI lo rende disponibile. Questa
+integrazione del codice non dimostra ancora un avvio nativo sul tablet.

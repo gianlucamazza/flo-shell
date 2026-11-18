@@ -39,7 +39,7 @@ Pressable {
         color: Theme.surfaceAlt
         anchors.horizontalCenter: parent.horizontalCenter
         y: Theme.spaceM
-        Icon { anchors.centerIn: parent; name: "bolt"; size: 28; color: Theme.accent }
+        Icon { anchors.centerIn: parent; name: root.agent && root.agent.isSettings ? "settings" : "bolt"; size: 28; color: Theme.accent }
     }
     Label {
         x: Theme.spaceS

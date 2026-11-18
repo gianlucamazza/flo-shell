@@ -7,7 +7,7 @@
 #   $(DATADIR)/greeter    Quickshell configuration of the greeter (symlinks
 #                         into ../shell for everything it shares)
 #   $(DATADIR)/session    Hyprland configurations
-#   $(BINDIR)             flo-shell, flo-session
+#   $(BINDIR)             flo-shell, flo-session, flo-hyprland, agent helpers
 #   $(SESSIONDIR)         flo-shell.desktop
 #   $(SYSCONFDIR)/pam.d   PAM service of the lock screen
 #   $(DOCDIR)             greetd configuration example
@@ -34,9 +34,14 @@ check: all
 	sh -n build/flo-session
 	sh -n build/flo-hyprland
 	sh -n scripts/flo-agent-session
+	sh -n scripts/flo-agent-config
 	sh -n dev/run-nested.sh
 	sh tests/test_flo_agents.sh
+	sh tests/test_flo_agent_config.sh
 	python3 tests/qml_lint.py
+	@if command -v shellcheck > /dev/null 2>&1; then \
+		shellcheck -S warning scripts/flo-agent-session scripts/flo-agent-config; \
+	fi
 	python3 dev/test-hyprland-launcher.py
 	python3 dev/test-brightness.py
 	python3 dev/test-session-lock.py
@@ -53,7 +58,7 @@ install: all
 	find $(DESTDIR)$(DATADIR) -type d -exec chmod 755 {} +
 	find $(DESTDIR)$(DATADIR) -type f -exec chmod 644 {} +
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(SESSIONDIR) $(DESTDIR)$(SYSCONFDIR)/pam.d $(DESTDIR)$(DOCDIR)
-	install -m 755 $(addprefix build/,$(SCRIPTS)) scripts/flo-agent-session $(DESTDIR)$(BINDIR)/
+	install -m 755 $(addprefix build/,$(SCRIPTS)) scripts/flo-agent-session scripts/flo-agent-config $(DESTDIR)$(BINDIR)/
 	install -m 644 session/flo-shell.desktop $(DESTDIR)$(SESSIONDIR)/
 	mkdir -p $(DESTDIR)$(USERUNITDIR)
 	install -m 644 session/flo-shell-session.target $(DESTDIR)$(USERUNITDIR)/
@@ -62,7 +67,7 @@ install: all
 
 uninstall:
 	rm -rf $(DESTDIR)$(DATADIR) $(DESTDIR)$(DOCDIR)
-	rm -f $(addprefix $(DESTDIR)$(BINDIR)/,$(SCRIPTS)) $(DESTDIR)$(BINDIR)/flo-agent-session
+	rm -f $(addprefix $(DESTDIR)$(BINDIR)/,$(SCRIPTS)) $(DESTDIR)$(BINDIR)/flo-agent-session $(DESTDIR)$(BINDIR)/flo-agent-config
 	rm -f $(DESTDIR)$(USERUNITDIR)/flo-shell-session.target
 	rm -f $(DESTDIR)$(SESSIONDIR)/flo-shell.desktop $(DESTDIR)$(SYSCONFDIR)/pam.d/flo-shell
 

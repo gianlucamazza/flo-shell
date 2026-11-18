@@ -215,21 +215,35 @@ riavviare il servizio. `A=/sys/fs/cgroup/user.slice/user-10000.slice/user@10000.
 | App audio o download in background | viene congelata anche lei (nessuna inibizione automatica ancora): annotare quali app ne soffrono |
 | `top` a schermo fermo | `quickshell` e `flo-sessiond` a 0 % anche con la politica attiva |
 
-## 13. Agenti remoti (`flo-agents`) **[solo CLI finto in CI]**
+## 13. Agenti (`flo-agents`, remoti e Crush locale) **[solo CLI finto in CI]**
 
 Senza `flo-agents` sul PATH il launcher non mostra voci agente e il log
-di Quickshell resta pulito. Con il CLI configurato:
+di Quickshell resta pulito. Con il CLI presente ma non configurato, e
+con il CLI configurato:
 
 | Cosa fare | Cosa deve succedere |
 |---|---|
-| `flo-agents list` stampa `claude` / `codex` / `grok` | all'apertura del launcher compaiono "Claude Code (remote)", "Codex (remote)", "Grok Build (remote)" con l'icona fulmine, senza loghi |
-| Toccare una voce | si apre il terminale della sessione su `flo-agents launch <tool>` |
+| `flo-agents` assente | nessuna voce agente, nessun rumore nel log |
+| CLI presente, `configured=false` | una sola voce "Configure agents"; il tocco apre il pannello |
+| CLI configurato, `flo-agents list` stampa `claude` / `codex` / `grok` | all'apertura del launcher compaiono "Claude Code (remote)", "Codex (remote)", "Grok Build (remote)" con l'icona fulmine, senza loghi, più "Agent settings" |
+| CLI configurato, `flo-agents list` stampa `crush` | voce "Crush (local)", stessa icona generica, nessun logo |
+| Toccare una voce strumento | si apre il terminale della sessione su `flo-agents launch <tool>` |
 | Chiudere la sessione con successo (exit 0) | nessuna notifica |
-| Far fallire il CLI (exit ≠ 0) | notifica titolo "Agent session dropped", corpo con lo strumento e il codice, senza host |
-| `flo-agents` assente o lista vuota | nessuna voce agente |
+| Far fallire il CLI (exit ≠ 0) su uno strumento remoto | notifica titolo "Agent session dropped", corpo con lo strumento e il codice, senza host |
+| Far fallire Crush (exit ≠ 0) | notifica titolo "Agent session ended with error" |
+| Pannello: toccare un campo | compare la tastiera a schermo (stesso percorso del campo di ricerca) |
+| Salva con un valore rifiutato dal CLI | la ragione di stderr compare accanto al campo, gli altri campi già scritti restano |
+| Prova connessione, host raggiungibile | "Raggiungibile" / presente o assente per strumento; se `host_key=new`, testo sul primo utilizzo |
+| Prova connessione, `host_key=changed` | avviso chiaro, **nessun** pulsante per ignorarlo |
+| Crea chiave | compare la riga pubblica; Copia se c'è `wl-copy`, altrimenti testo selezionabile; QR solo se `key qr` esce 0. Mai la chiave privata |
+| Sezione Local agent (Crush): Installa | mostra avanzamento e l'esito; il testo avvisa che lo scaricamento è circa 28 MB |
+| Provider openai-compat / ollama / llamacpp | compare il campo URL di base; ollama e llamacpp possono omettere la chiave API |
+| Salva chiave API | il valore va su stdin di `secret set api_key` (mai argv); il campo si svuota; compare "Key set ••••abcd" da `secret status` |
+| Rimuovi chiave | `secret unset`; lo stato torna unset |
 | `top` a schermo fermo col launcher chiuso | nessun processo `flo-agents` o timer della shell |
 
-Le prove automatiche sono `sh tests/test_flo_agents.sh` (CLI e `notify-send` finti).
+Le prove automatiche sono `sh tests/test_flo_agents.sh` e
+`sh tests/test_flo_agent_config.sh` (CLI finto; nessun host reale).
 
 ## 14. Regole di progetto da ricontrollare a occhio
 

@@ -49,14 +49,16 @@ Singleton {
     property bool quickSettingsOpen: false
     property bool powerMenuOpen: false
     property bool overviewOpen: false
+    property bool agentSettingsOpen: false
 
     property bool launcherLoaded: false
     property bool quickSettingsLoaded: false
     property bool powerMenuLoaded: false
     property bool osdLoaded: false
     property bool overviewLoaded: false
+    property bool agentSettingsLoaded: false
 
-    readonly property bool anyOpen: launcherOpen || quickSettingsOpen || powerMenuOpen || overviewOpen
+    readonly property bool anyOpen: launcherOpen || quickSettingsOpen || powerMenuOpen || overviewOpen || agentSettingsOpen
 
     // OSD: kind is "volume" or "brightness".
     property string osdKind: ""
@@ -66,6 +68,7 @@ Singleton {
         overviewOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
+        agentSettingsOpen = false;
         launcherLoaded = true;
         launcherOpen = true;
     }
@@ -80,6 +83,7 @@ Singleton {
         overviewOpen = false;
         launcherOpen = false;
         powerMenuOpen = false;
+        agentSettingsOpen = false;
         osdVisible = false;
         quickSettingsLoaded = true;
         quickSettingsOpen = true;
@@ -95,6 +99,7 @@ Singleton {
         overviewOpen = false;
         launcherOpen = false;
         quickSettingsOpen = false;
+        agentSettingsOpen = false;
         powerMenuLoaded = true;
         powerMenuOpen = true;
     }
@@ -103,6 +108,7 @@ Singleton {
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
+        agentSettingsOpen = false;
         overviewLoaded = true;
         overviewOpen = true;
     }
@@ -113,11 +119,21 @@ Singleton {
             openOverview();
     }
 
+    function openAgentSettings(): void {
+        overviewOpen = false;
+        launcherOpen = false;
+        quickSettingsOpen = false;
+        powerMenuOpen = false;
+        agentSettingsLoaded = true;
+        agentSettingsOpen = true;
+    }
+
     function closeAll(): void {
         overviewOpen = false;
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
+        agentSettingsOpen = false;
     }
 
     // Home always returns to the same surface, preserving running apps.

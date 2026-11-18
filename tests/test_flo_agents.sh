@@ -124,13 +124,20 @@ check "$out" "$(printf 'claude\tClaude Code (remote)\ncodex\tCodex (remote)')" \
 	"list drops ids that are not simple tool names"
 check "$(cat "$work/err")" "" "unsafe ids are silent on stderr"
 
-# Unknown but well-formed ids are skipped (flo-agents only knows
-# claude, codex and grok).
+# Unknown but well-formed ids are skipped (flo-agents knows claude,
+# codex, grok and crush).
 printf 'claude\ngemini\ncodex\n' > "$work/tools.list"
 out=$("$script" list 2>"$work/err")
 check "$out" "$(printf 'claude\tClaude Code (remote)\ncodex\tCodex (remote)')" \
 	"list skips unknown tool ids"
 check "$(cat "$work/err")" "" "unknown ids are silent on stderr"
+
+printf 'crush\n' > "$work/tools.list"
+out=$("$script" list 2>"$work/err")
+st=$?
+check "$st" "0" "crush list exits 0"
+check "$out" "$(printf 'crush\tCrush (local)')" "list maps crush to Crush (local)"
+check_not_contains "$out" "Charm" "crush label has no Charm branding"
 
 # list that fails (CLI present but misconfigured): still empty, no stderr.
 FAKE_AGENTS_LIST_EXIT=1
@@ -207,6 +214,24 @@ else
 	check_contains "$n" "status 7" "notification names the exit code"
 	check_not_contains "$n" "@" "notification has no host"
 	check_not_contains "$n" "ssh" "notification has no ssh wording"
+fi
+
+rm -f "$FAKE_NOTIFY_OUT"
+: > "$FAKE_AGENTS_LOG"
+FAKE_AGENTS_LAUNCH_EXIT=7
+export FAKE_AGENTS_LAUNCH_EXIT
+"$script" launch crush >/dev/null 2>"$work/err"
+st=$?
+check "$st" "7" "nonzero crush launch exit is preserved"
+check "$(cat "$FAKE_AGENTS_LOG")" "$(printf 'launch crush\n')" "failed crush launch still calls flo-agents"
+if [ ! -f "$FAKE_NOTIFY_OUT" ]; then
+	fail "nonzero crush exit must send a notification"
+else
+	n=$(cat "$FAKE_NOTIFY_OUT")
+	check_contains "$n" "Agent session ended with error" "local crush notification title"
+	check_not_contains "$n" "Agent session dropped" "crush does not use the remote drop title"
+	check_contains "$n" "Crush (local)" "crush notification names Crush (local)"
+	check_contains "$n" "status 7" "crush notification names the exit code"
 fi
 
 printf '%d checks, %d failed\n' "$checks" "$failures"

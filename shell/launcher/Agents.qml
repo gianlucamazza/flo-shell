@@ -3,8 +3,9 @@ import Quickshell
 import Quickshell.Io
 
 // Remote-agent launcher entries. The companion CLI (`flo-agents`, from
-// nexus7-flo-linux) owns SSH/mosh; this object only lists configured
-// tools and starts `flo-agent-session` in the session terminal.
+// nexus7-flo-linux) owns SSH/mosh and the config file; this object only
+// lists tools / onboarding rows and starts `flo-agent-session` or the
+// settings panel.
 //
 // The list is read once when refresh() is called (launcher open). No
 // timer, no background process: the Process below is idle except during
@@ -15,7 +16,7 @@ Item {
     width: 0
     height: 0
 
-    // [{ id, name, tool, isAgent, icon, genericName, keywords }]
+    // [{ id, name, tool, isAgent, isSettings, icon, genericName, keywords }]
     property var tools: []
 
     function refresh(): void {
@@ -50,21 +51,39 @@ Item {
         const lines = (text || "").split("\n");
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            const tab = line.indexOf("\t");
-            if (tab <= 0)
+            if (line === "")
                 continue;
-            const id = line.slice(0, tab);
-            const name = line.slice(tab + 1);
+            const parts = line.split("\t");
+            if (parts.length < 2)
+                continue;
+            const id = parts[0];
+            const name = parts[1];
+            const kind = parts.length > 2 ? parts[2] : "launch";
             if (id === "" || name === "")
                 continue;
+            if (kind === "settings") {
+                out.push({
+                    id: "flo-agent-settings",
+                    name: name,
+                    tool: "",
+                    isAgent: true,
+                    isSettings: true,
+                    icon: "",
+                    genericName: "agent settings",
+                    keywords: ["agent", "settings", "configure"]
+                });
+                continue;
+            }
+            const local = id === "crush";
             out.push({
                 id: "flo-agent-" + id,
                 name: name,
                 tool: id,
                 isAgent: true,
+                isSettings: false,
                 icon: "",
-                genericName: "remote agent",
-                keywords: ["agent", "remote", id]
+                genericName: local ? "local agent" : "remote agent",
+                keywords: local ? ["agent", "local", "crush"] : ["agent", "remote", id]
             });
         }
         tools = out;
@@ -73,7 +92,7 @@ Item {
     Process {
         id: proc
         // Missing helper → empty list, exit 0, no log line.
-        command: ["sh", "-c", "command -v flo-agent-session >/dev/null 2>&1 && exec flo-agent-session list || true"]
+        command: ["sh", "-c", "command -v flo-agent-config >/dev/null 2>&1 && exec flo-agent-config entries || true"]
         stdout: StdioCollector {
             onStreamFinished: root._apply(text)
         }

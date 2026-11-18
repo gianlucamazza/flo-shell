@@ -144,6 +144,33 @@ RAM trascurabile (un processo di lista a ogni apertura del launcher,
 poi niente). Se `flo-agents` manca o la lista è vuota, nessuna voce e
 nessun errore nei log.
 
+**Agenti (milestone 1b).** Pannello tattile di configurazione, caricato
+pigro alla prima apertura. La shell non scrive il file di config:
+`flo-agent-config` chiama `flo-agents config set` un campo alla volta,
+come argv, e rilegge `config get --json`. «Prova connessione» esegue
+`check --json`. La sezione chiave mostra solo la chiave pubblica
+(Copia con `wl-copy` se c'è, altrimenti testo selezionabile) e un QR
+in `$XDG_RUNTIME_DIR` se `key qr` esce 0. Con `flo-agents` presente ma
+`configured=false` il launcher mostra solo «Configure agents»; se
+configurato, le voci M1 più «Agent settings»; se il CLI manca, il
+comportamento M1 (niente, nessun rumore nei log). Dipendenza: i campi
+di testo usano la tastiera a schermo già della shell (ponte `wvkbd`,
+rischio R3); questa milestone non ne costruisce una nuova.
+
+**Agente locale Crush.** `flo-agents list` può stampare `crush`:
+etichetta «Crush (local)», icona generica, nessun logo. L'avvio passa
+da `flo-agent-session`; se la sessione locale esce ≠ 0, notifica
+«Agent session ended with error». `config get --json` include
+`local` (`provider`, `base_url`, `model`, `key_set`, `installed`,
+`version`); `config set` accetta `local.provider` (anthropic, openai,
+xai, openai-compat, ollama, llamacpp), `local.base_url` e
+`local.model`. Installazione: `flo-agents local install|uninstall|status`
+(`status` è JSON `{installed,version,path}`; l'installazione scarica
+circa 28 MB). La chiave API va solo su stdin a `secret set api_key`
+(mai argv); `secret status` stampa set/unset e le ultime 4. Il
+pannello ha la sezione «Local agent (Crush)». La RAM di Crush sul
+tablet non è misurata: nessun numero in questa sezione.
+
 ## Misura
 
 - Tempi di fotogramma dal compositore; tracce `perf`/ftrace per i casi lenti.

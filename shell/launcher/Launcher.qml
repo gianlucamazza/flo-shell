@@ -35,6 +35,10 @@ PanelWindow {
     }
 
     function launch(entry: var): void {
+        if (entry && entry.isSettings) {
+            Ui.openAgentSettings();
+            return;
+        }
         if (entry && entry.isAgent) {
             Sessiond.launching();
             agents.launch(entry.tool);

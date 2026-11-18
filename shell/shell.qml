@@ -13,6 +13,7 @@ import qs.osd
 import qs.power
 import qs.overview
 import qs.lock
+import qs.agents
 
 // flo-shell entry point. One process; the two bars are always present, every
 // other surface is created on first use.
@@ -71,6 +72,10 @@ ShellRoot {
     LazyLoader {
         active: Ui.overviewLoaded
         Overview {}
+    }
+    LazyLoader {
+        active: Ui.agentSettingsLoaded
+        AgentSettings {}
     }
     LazyLoader {
         active: Session.lockLoaded
@@ -141,6 +146,7 @@ ShellRoot {
         function launcher(): void { Ui.toggleLauncher(); }
         function quickSettings(): void { Ui.toggleQuickSettings(); }
         function powerMenu(): void { Ui.openPowerMenu(); }
+        function agentSettings(): void { Ui.openAgentSettings(); }
         function closeAll(): void { Ui.closeAll(); }
         function back(): void { Ui.back(); }
         function appSwitcher(): void { Compositor.showAppSwitcher(); }
@@ -198,6 +204,7 @@ ShellRoot {
                 launcher: Ui.launcherOpen,
                 quickSettings: Ui.quickSettingsOpen,
                 powerMenu: Ui.powerMenuOpen,
+                agentSettings: Ui.agentSettingsOpen,
                 overview: Ui.overviewOpen,
                 locked: Session.locked,
                 lockSecure: Session.lockSecure,
