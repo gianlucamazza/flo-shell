@@ -7,7 +7,9 @@ bar, quick settings, notifications, lock screen and greeter, built with
 C daemon for session and app lifecycle.
 
 Part of [nexus7-flo-linux](https://github.com/gianlucamazza/nexus7-flo-linux).
-Not an official Nura or Hyprland project.
+Not an official Nura or Hyprland project. Hardware status of the tablet:
+[HARDWARE.md](https://github.com/gianlucamazza/nexus7-flo-linux/blob/main/docs/HARDWARE.md),
+roadmap: [ROADMAP.md](https://github.com/gianlucamazza/nexus7-flo-linux/blob/main/docs/ROADMAP.md).
 
 ## Layout
 
