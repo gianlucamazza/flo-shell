@@ -13,7 +13,9 @@ jobs:
         run: make install DESTDIR="$PWD/build/pkg" PREFIX=/usr
       - name: flo-agent-session tests
         run: sh tests/test_flo_agents.sh
+      - name: flo-agent-config tests
+        run: sh tests/test_flo_agent_config.sh
       - name: qml lint
         run: python3 tests/qml_lint.py
       - name: shellcheck
-        run: shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session
+        run: shellcheck -S warning dev/*.sh tests/*.sh scripts/flo-agent-session scripts/flo-agent-config

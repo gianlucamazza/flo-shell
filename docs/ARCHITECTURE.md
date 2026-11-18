@@ -33,6 +33,7 @@ shell/
                        EdgeArea, KeyGrid (tastiera QWERTY interna)…
   bar/ home/
   launcher/            Launcher, Agents (voci flo-agents, una lettura all'apertura)
+  agents/              AgentSettings (pannello di configurazione, carico pigro)
   quicksettings/ notifications/ osd/ power/
   overview/            Overview, WindowCard, Thumbnail
   lock/                Lock (sessione bloccata), LockScreen, AuthPad, Auth
@@ -54,7 +55,8 @@ dev/
   hyprland-nested.conf / .lua   configurazione del compositore annidato
   pam-check.sh, fake-greetd.py, fake-wvkbd.sh   controparti finte per le prove
 scripts/
-  flo-agent-session    wrapper: `flo-agents list` / `flo-agents launch`
+  flo-agent-session    wrapper: `flo-agents list` / `flo-agents launch` (crush = Crush (local))
+  flo-agent-config     wrapper argv-safe: config get/set, check, key, local, secret (chiave API solo su stdin)
 Makefile               install / uninstall / check
 ```
 
@@ -64,7 +66,7 @@ Superfici (tutte layer-shell, tutte opache tranne le due strisce tattili):
 |---|---|---|
 | Barra di stato | top | 30 px visibili e riservati, superficie di 48 px |
 | Barra home | top | 20 px visibili e riservati, superficie di 48 px |
-| Launcher, impostazioni rapide | overlay | create al primo uso, poi tenute in memoria |
+| Launcher, impostazioni rapide, impostazioni agenti | overlay | create al primo uso, poi tenute in memoria |
 | Menu di alimentazione | overlay | a tutto schermo, copre anche le barre |
 | Panoramica | overlay | tra le due barre, creata al primo uso |
 | Blocco schermo | ext-session-lock-v1 | non è layer-shell: copre tutto, creata al primo blocco |
@@ -149,7 +151,7 @@ legati nel compositore e per le prove:
 
 | Funzione | Effetto |
 |---|---|
-| `home`, `launcher`, `quickSettings`, `powerMenu`, `closeAll` | pannelli |
+| `home`, `launcher`, `quickSettings`, `powerMenu`, `agentSettings`, `closeAll` | pannelli |
 | `overview` (o `appSwitcher`) | apre/chiude la panoramica |
 | `back` | chiude un pannello, altrimenti `Compositor.goBack()` |
 | `lock` | blocca la sessione |

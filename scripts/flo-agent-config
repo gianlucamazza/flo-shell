@@ -1,0 +1,314 @@
+#!/bin/sh
+# Argv-safe wrapper around `flo-agents` config/check/key for the
+# touch settings panel. The CLI (nexus7-flo-linux) is the only writer of
+# the config file; this script never edits it and never interpolates
+# user values into a shell string.
+#
+#   flo-agent-config get
+#   flo-agent-config entries
+#   flo-agent-config apply KEY VALUE [KEY VALUE ...]
+#   flo-agent-config check
+#   flo-agent-config key-ensure | key-show | key-qr
+#   flo-agent-config host-key-text new|known|changed|unknown
+#   flo-agent-config local-install | local-uninstall | local-status
+#   flo-agent-config secret-set   (API key on stdin only, never argv)
+#   flo-agent-config secret-status | secret-unset
+#
+# apply runs `flo-agents config set` once per pair, in order, as argv
+# (not `sh -c`). A failed set prints ERR<TAB>key<TAB>reason, re-reads
+# `config get --json`, and exits 2. Missing flo-agents is silent.
+set -u
+
+usage() {
+	echo "usage: flo-agent-config get | entries | apply KEY VALUE ... | check | key-ensure | key-show | key-qr | host-key-text <kind> | local-install | local-uninstall | local-status | secret-set | secret-status | secret-unset" >&2
+	exit 2
+}
+
+label_of() {
+	case "$1" in
+	claude) printf '%s\n' "Claude Code (remote)" ;;
+	codex) printf '%s\n' "Codex (remote)" ;;
+	grok) printf '%s\n' "Grok Build (remote)" ;;
+	crush) printf '%s\n' "Crush (local)" ;;
+	*) return 1 ;;
+	esac
+}
+
+valid_id() {
+	case "$1" in
+	"" | *[!A-Za-z0-9_-]*) return 1 ;;
+	esac
+	return 0
+}
+
+valid_key() {
+	case "$1" in
+	host | user | port | transport | agents | default | cmd.claude | cmd.codex | cmd.grok | tmux | tmux_prefix | local.provider | local.base_url | local.model)
+		return 0
+		;;
+	*)
+		return 1
+		;;
+	esac
+}
+
+trim() {
+	printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+have_cli() {
+	command -v flo-agents >/dev/null 2>&1
+}
+
+configured_true() {
+	compact=$(printf '%s' "$1" | tr -d ' \t\n\r')
+	case "$compact" in
+	*'"configured":true'*) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+configured_false() {
+	compact=$(printf '%s' "$1" | tr -d ' \t\n\r')
+	case "$compact" in
+	*'"configured":false'*) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+emit_list_rows() {
+	out=$(flo-agents list 2>/dev/null) || return 0
+	[ -n "$out" ] || return 0
+	printf '%s\n' "$out" | while IFS= read -r raw || [ -n "$raw" ]; do
+		id=$(trim "$raw")
+		valid_id "$id" || continue
+		label=$(label_of "$id") || continue
+		printf '%s\t%s\tlaunch\n' "$id" "$label"
+	done
+}
+
+cmd_get() {
+	if ! have_cli; then
+		printf '%s\n' '{"configured":false}'
+		return 0
+	fi
+	json=$(flo-agents config get --json 2>/dev/null) || json=""
+	if [ -z "$json" ]; then
+		printf '%s\n' '{"configured":false}'
+		return 0
+	fi
+	printf '%s\n' "$json"
+	return 0
+}
+
+cmd_entries() {
+	have_cli || return 0
+	json=$(flo-agents config get --json 2>/dev/null) || json=""
+	if [ -z "$json" ]; then
+		emit_list_rows
+		return 0
+	fi
+	if configured_false "$json"; then
+		printf 'settings\tConfigure agents\tsettings\n'
+		return 0
+	fi
+	emit_list_rows
+	if configured_true "$json"; then
+		printf 'settings\tAgent settings\tsettings\n'
+	fi
+	return 0
+}
+
+one_line() {
+	printf '%s' "$1" | tr '\n' ' ' | sed 's/[[:space:]]*$//'
+}
+
+cmd_apply() {
+	if [ $(($# % 2)) -ne 0 ] || [ $# -lt 2 ]; then
+		usage
+	fi
+	if ! have_cli; then
+		printf 'ERR\t%s\tflo-agents is not installed\n' "$1"
+		return 2
+	fi
+	err_key=""
+	err_reason=""
+	while [ $# -ge 2 ]; do
+		key=$1
+		val=$2
+		shift 2
+		if ! valid_key "$key"; then
+			err_key=$key
+			err_reason="unknown config key"
+			break
+		fi
+		# argv only: key and value are separate arguments. Never
+		# `sh -c` with the user value interpolated.
+		set_st=0
+		reason=$(flo-agents config set "$key" "$val" 2>&1 >/dev/null) || set_st=$?
+		if [ "$set_st" -ne 0 ]; then
+			err_key=$key
+			err_reason=$(one_line "$reason")
+			[ -n "$err_reason" ] || err_reason="invalid value"
+			break
+		fi
+	done
+	if [ -n "$err_key" ]; then
+		printf 'ERR\t%s\t%s\n' "$err_key" "$err_reason"
+		cmd_get
+		return 2
+	fi
+	cmd_get
+	return 0
+}
+
+cmd_check() {
+	if ! have_cli; then
+		printf '%s\n' '{"reachable":false,"error":"flo-agents is not installed","agents":{},"host_key":"unknown"}'
+		return 1
+	fi
+	flo-agents check --json
+}
+
+cmd_key_ensure() {
+	have_cli || return 1
+	flo-agents key ensure
+}
+
+cmd_key_show() {
+	have_cli || return 1
+	flo-agents key show
+}
+
+cmd_key_qr() {
+	dir=${XDG_RUNTIME_DIR:-}
+	if [ -z "$dir" ]; then
+		return 1
+	fi
+	have_cli || return 1
+	out=$dir/flo-agent-device.png
+	st=0
+	flo-agents key qr "$out" || st=$?
+	if [ "$st" -eq 0 ]; then
+		printf '%s\n' "$out"
+	fi
+	return "$st"
+}
+
+cmd_local_install() {
+	have_cli || return 1
+	flo-agents local install
+}
+
+cmd_local_uninstall() {
+	have_cli || return 1
+	flo-agents local uninstall
+}
+
+cmd_local_status() {
+	have_cli || return 1
+	flo-agents local status
+}
+
+# Inherit stdin; never read the key into a shell variable or argv.
+cmd_secret_set() {
+	have_cli || return 1
+	exec flo-agents secret set api_key
+}
+
+cmd_secret_status() {
+	have_cli || return 1
+	flo-agents secret status
+}
+
+cmd_secret_unset() {
+	have_cli || return 1
+	flo-agents secret unset
+}
+
+cmd_host_key_text() {
+	case "$1" in
+	new)
+		printf '%s\n' "The host key was trusted on first use."
+		;;
+	changed)
+		printf '%s\n' "The host key has changed. Refusing to continue. Remove the stale known_hosts entry on this device, then test again."
+		;;
+	known | unknown)
+		printf '%s\n' ""
+		;;
+	*)
+		return 2
+		;;
+	esac
+}
+
+cmd=${1:-}
+status=0
+case "$cmd" in
+get)
+	cmd_get
+	status=$?
+	;;
+entries)
+	cmd_entries
+	status=$?
+	;;
+apply)
+	shift
+	cmd_apply "$@"
+	status=$?
+	;;
+check)
+	cmd_check
+	status=$?
+	;;
+key-ensure)
+	cmd_key_ensure
+	status=$?
+	;;
+key-show)
+	cmd_key_show
+	status=$?
+	;;
+key-qr)
+	cmd_key_qr
+	status=$?
+	;;
+host-key-text)
+	[ $# -ge 2 ] || usage
+	cmd_host_key_text "$2"
+	status=$?
+	;;
+local-install)
+	cmd_local_install
+	status=$?
+	;;
+local-uninstall)
+	cmd_local_uninstall
+	status=$?
+	;;
+local-status)
+	cmd_local_status
+	status=$?
+	;;
+secret-set)
+	cmd_secret_set
+	status=$?
+	;;
+secret-status)
+	cmd_secret_status
+	status=$?
+	;;
+secret-unset)
+	cmd_secret_unset
+	status=$?
+	;;
+"" | -h | --help)
+	usage
+	;;
+*)
+	usage
+	;;
+esac
+exit "$status"

@@ -21,6 +21,7 @@ label_of() {
 	claude) printf '%s\n' "Claude Code (remote)" ;;
 	codex) printf '%s\n' "Codex (remote)" ;;
 	grok) printf '%s\n' "Grok Build (remote)" ;;
+	crush) printf '%s\n' "Crush (local)" ;;
 	*) return 1 ;;
 	esac
 }
@@ -54,7 +55,11 @@ cmd_list() {
 notify_dropped() {
 	tool=$1
 	status=$2
-	title="Agent session dropped"
+	if [ "$tool" = "crush" ]; then
+		title="Agent session ended with error"
+	else
+		title="Agent session dropped"
+	fi
 	if ! label=$(label_of "$tool"); then
 		label=$tool
 	fi

@@ -35,6 +35,10 @@ PanelWindow {
     }
 
     function launch(entry: var): void {
+        if (entry && entry.isSettings) {
+            Ui.openAgentSettings();
+            return;
+        }
         if (entry && entry.isAgent) {
             Sessiond.launching();
             agents.launch(entry.tool);
@@ -110,6 +114,7 @@ PanelWindow {
                 required property var modelData
                 // modelData is null for an instant while the model shrinks.
                 readonly property bool isAgent: !!(modelData && modelData.isAgent)
+                readonly property bool isSettings: !!(modelData && modelData.isSettings)
                 readonly property string name: modelData ? modelData.name : ""
                 readonly property string iconSource: (!modelData || isAgent) ? "" : Apps.iconSource(modelData)
 
@@ -126,7 +131,7 @@ PanelWindow {
                     asynchronous: true
                     source: cell.iconSource
                 }
-                // Generic bolt for remote agents: no vendor logos.
+                // Generic bolt for agent rows (remote tools and Crush): no vendor logos.
                 Rectangle {
                     visible: cell.isAgent
                     y: 14
@@ -138,7 +143,7 @@ PanelWindow {
 
                     Icon {
                         anchors.centerIn: parent
-                        name: "bolt"
+                        name: cell.isSettings ? "settings" : "bolt"
                         size: 28
                         color: Theme.accent
                     }
