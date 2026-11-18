@@ -29,6 +29,15 @@ meson setup build/sessiond sessiond && meson compile -C build/sessiond
 
 See `docs/TESTING.md` for checks to run on the device.
 
+## Portability
+
+flo-shell is a Quickshell interface on Hyprland, plus a small session
+daemon. It is not tied to the APQ8064 SoC, but it is written for the
+Nexus 7 (2013) tablet: layout, greeter and session files are
+flo-specific. It is not a drop-in shell for an arbitrary mainline
+Wayland device. Nested Hyprland testing on a desktop is documented
+under `dev/`.
+
 ## Licence
 
 MIT, see `LICENSE`.
