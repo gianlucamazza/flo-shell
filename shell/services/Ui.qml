@@ -9,6 +9,42 @@ import qs
 Singleton {
     id: root
 
+    property bool homeOpen: true
+    property bool keepHome: false
+    property string launchingName: ""
+    property string feedback: ""
+
+    function showApplication(): void {
+        keepHome = false;
+        homeOpen = false;
+        launchingName = "";
+        feedback = "";
+        launchTimer.stop();
+        feedbackTimer.stop();
+    }
+    function beginLaunch(name: string): void {
+        keepHome = false;
+        closeAll();
+        homeOpen = false;
+        launchingName = name;
+        feedback = I18n.t("home.starting", name);
+        launchTimer.restart();
+    }
+    Timer {
+        id: launchTimer
+        interval: 20000
+        onTriggered: {
+            root.launchingName = "";
+            root.feedback = I18n.t("home.slowLaunch");
+            feedbackTimer.restart();
+        }
+    }
+    Timer {
+        id: feedbackTimer
+        interval: 8000
+        onTriggered: root.feedback = ""
+    }
+
     property bool launcherOpen: false
     property bool quickSettingsOpen: false
     property bool powerMenuOpen: false
@@ -69,12 +105,6 @@ Singleton {
     }
 
     function openOverview(): void {
-        // With nothing open the overview would be an empty page: show the
-        // launcher instead, which is what the gesture is for in that case.
-        if (Compositor.windows.length === 0) {
-            openLauncher();
-            return;
-        }
         launcherOpen = false;
         quickSettingsOpen = false;
         powerMenuOpen = false;
@@ -106,12 +136,16 @@ Singleton {
         agentSettingsOpen = false;
     }
 
-    // Home bar action: dismiss whatever is open, otherwise show the launcher.
+    // Home always returns to the same surface, preserving running apps.
     function home(): void {
-        if (anyOpen)
-            closeAll();
-        else
-            openLauncher();
+        closeAll();
+        keepHome = true;
+        launchingName = "";
+        feedback = "";
+        launchTimer.stop();
+        feedbackTimer.stop();
+        homeOpen = true;
+        Keyboard.hide();
     }
 
     // Development only: text for the lock pad, see lock/AuthPad.qml.
@@ -121,7 +155,7 @@ Singleton {
     function back(): void {
         if (anyOpen)
             closeAll();
-        else
+        else if (!homeOpen)
             Compositor.goBack();
     }
 

@@ -261,6 +261,13 @@ Singleton {
         if (!policy)
             return;
         const seq = ++_fgSeq;
+        if (Ui.homeOpen && Ui.launchingName === "") {
+            root._sentForeground = "";
+            root._send("foreground -", ok => {
+                if (ok && seq === root._fgSeq) root.foregroundUnit = "";
+            });
+            return;
+        }
         unitOfWindow(Compositor.activeWindow, unit => {
             // A failed lookup keeps the previous foreground: sending "-"
             // would freeze the app that is still on screen.
@@ -281,6 +288,10 @@ Singleton {
         }
     }
     Connections {
+        target: Ui
+        function onHomeOpenChanged(): void { root.updateForeground(); }
+    }
+    Connections {
         target: Session
         function onLockedChanged(): void {
             if (root.policy)
@@ -292,10 +303,28 @@ Singleton {
 
     // ---- Hooks for the rest of the shell ---------------------------------
     // App launch: short CPU boost for the start-up, and a chance to connect.
-    function launching(): void {
+    // `unit` (the scope the app is started in, e.g. "app-foo-1a2b3c4d.scope")
+    // becomes the foreground right away: the foreground otherwise follows
+    // the focused window, and an app whose first window takes longer than
+    // the grace period (GNOME Web creating its profile takes over 10 s on
+    // the tablet) was frozen before it could show it.
+    function launching(unit: string): void {
         poke();
-        if (sock.connected)
-            _send("boost 500", () => {}); // ERR disabled is fine
+        if (!sock.connected)
+            return;
+        _send("boost 500", () => {}); // ERR disabled is fine
+        if (Ui.homeOpen && Ui.keepHome) {
+            updateForeground();
+            return;
+        }
+        if (unit !== "" && root.policy) {
+            root._fgSeq++;
+            root._sentForeground = unit;
+            _send("foreground " + unit, ok => {
+                if (ok)
+                    root.foregroundUnit = unit;
+            });
+        }
     }
 
     // Installed as Compositor.beforeClose: thaw the window's app before the

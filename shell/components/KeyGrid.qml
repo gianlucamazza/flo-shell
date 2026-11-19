@@ -88,6 +88,12 @@ Item {
                         required property var modelData
                         readonly property bool named: typeof modelData !== "string"
                         readonly property string kind: named ? modelData.k : ""
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: !named ? (root.shift ? modelData.toUpperCase() : modelData) : kind === "back" ? I18n.t("lock.delete") : kind === "enter" ? I18n.t("lock.submit") : kind === "space" ? I18n.t("keyboard.space") : kind === "shift" ? I18n.t("keyboard.shift") : kind === "sym" ? I18n.t("keyboard.symbols") : I18n.t("keyboard.more")
+                        Accessible.onPressAction: root.press(cell.modelData)
+                        Keys.onReturnPressed: root.press(cell.modelData)
+                        Keys.onSpacePressed: root.press(cell.modelData)
                         readonly property string glyph: kind === "back" ? "backspace" : kind === "shift" ? "shift" : kind === "enter" ? root.enterIcon : ""
 
                         width: Math.floor(root.unit * (named ? modelData.w : 1))
@@ -98,8 +104,8 @@ Item {
                             anchors.margins: 3
                             radius: 8
                             color: area.pressed ? Theme.pressed : cell.kind === "enter" ? Theme.accent : (cell.kind === "shift" && root.shift) ? Theme.border : cell.named && cell.kind !== "space" ? Theme.surface : Theme.surfaceAlt
-                            border.width: cell.named && cell.kind !== "space" && cell.kind !== "enter" ? 1 : 0
-                            border.color: Theme.border
+                            border.width: cell.activeFocus ? 2 : cell.named && cell.kind !== "space" && cell.kind !== "enter" ? 1 : 0
+                            border.color: cell.activeFocus ? Theme.accent : Theme.border
                         }
                         Icon {
                             visible: cell.glyph !== ""

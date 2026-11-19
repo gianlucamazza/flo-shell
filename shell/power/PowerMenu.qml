@@ -58,9 +58,11 @@ PanelWindow {
     color: Theme.bg
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "flo-power"
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     Item {
         id: content
+        Keys.onEscapePressed: Ui.back()
 
         readonly property bool land: width > height
         readonly property int pad: Theme.spaceXl
@@ -119,6 +121,7 @@ PanelWindow {
                         background: isArmed ? Theme.danger : Theme.surfaceAlt
                         pressedColor: isArmed ? Qt.darker(Theme.danger, 1.2) : Theme.pressed
                         onTapped: win.trigger(modelData)
+                        accessibleName: isArmed ? I18n.t("power.confirm") + " " + modelData.label : modelData.label
 
                         Row {
                             anchors.centerIn: parent
@@ -147,6 +150,7 @@ PanelWindow {
                 height: Theme.touch
                 background: Theme.surface
                 onTapped: Ui.powerMenuOpen = false
+                accessibleName: I18n.t("common.cancel")
 
                 Label {
                     anchors.centerIn: parent

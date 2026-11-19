@@ -18,11 +18,44 @@ import qs.agents
 // flo-shell entry point. One process; the two bars are always present, every
 // other surface is created on first use.
 ShellRoot {
+    id: root
+    property int knownWindows: 0
     // Background app freezer: connect to flo-sessiond (no-op without it).
-    Component.onCompleted: Sessiond.start()
+    Component.onCompleted: {
+        Sessiond.start();
+        knownWindows = Compositor.windows.length;
+        if (knownWindows > 0) Ui.showApplication();
+    }
 
     StatusBar {}
     HomeBar {}
+    Home {}
+    LaunchFeedback {}
+
+    Connections {
+        target: Apps
+        function onLaunchRequested(name: string): void { Ui.beginLaunch(name); }
+    }
+    Connections {
+        target: Compositor
+        function onActiveWindowChanged(): void {
+            if (Compositor.activeWindow && !Ui.keepHome)
+                Ui.showApplication();
+        }
+        function onWindowsChanged(): void {
+            const count = Compositor.windows.length;
+            // A newly mapped window may not gain keyboard focus while Home's
+            // layer is focused. Reveal it without waiting for that focus.
+            if (count > root.knownWindows) {
+                // Dialogs are normal windows; a shell panel must not cover them.
+                Ui.closeAll();
+                if (!Ui.keepHome)
+                    Ui.showApplication();
+            } else if (count === 0 && Ui.launchingName === "")
+                Ui.home();
+            root.knownWindows = count;
+        }
+    }
 
     LazyLoader {
         active: Ui.launcherLoaded
@@ -109,6 +142,7 @@ ShellRoot {
         target: "flo"
 
         function home(): void { Ui.home(); }
+        function textSize(value: real): void { UiPreferences.setTextScale(value); }
         function launcher(): void { Ui.toggleLauncher(); }
         function quickSettings(): void { Ui.toggleQuickSettings(); }
         function powerMenu(): void { Ui.openPowerMenu(); }
@@ -143,6 +177,13 @@ ShellRoot {
         function launch(desktopId: string): string { return Apps.launchById(desktopId); }
         // Close the window at this index of Compositor.windows (tests).
         function closeWindow(index: int): void { Compositor.closeWindow(Compositor.windows[index] || null); }
+        function activateWindow(index: int): void {
+            const w = Compositor.windows[index];
+            if (w) {
+                Ui.closeAll();
+                Compositor.focusWindow(w);
+            }
+        }
         function workspace(id: int): void { Compositor.focusWorkspace(id); }
         function volume(deltaPercent: int): void { Audio.step(deltaPercent / 100); }
         function mute(): void { Audio.toggleMute(); }
@@ -151,6 +192,12 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({
                 compositor: Compositor.backendName,
+                home: Ui.homeOpen,
+                launching: Ui.launchingName,
+                feedback: Ui.feedback,
+                textScale: Theme.textScale,
+                reducedMotion: Theme.reducedMotion,
+                screen: Device.screen ? Device.screen.name : "",
                 windows: Compositor.windows.length,
                 workspace: Compositor.activeWorkspaceId,
                 landscape: Device.landscape,
@@ -160,6 +207,7 @@ ShellRoot {
                 agentSettings: Ui.agentSettingsOpen,
                 overview: Ui.overviewOpen,
                 locked: Session.locked,
+                lockSecure: Session.lockSecure,
                 displayOn: Session.displayOn,
                 idleInhibited: Session.idleInhibited,
                 rotation: RotationLock.degrees,

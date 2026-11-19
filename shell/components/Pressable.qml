@@ -11,6 +11,8 @@ Item {
     property color background: "transparent"
     property color pressedColor: Theme.pressed
     property real radius: Theme.radius
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     readonly property alias pressed: area.pressed
     default property alias contentData: holder.data
 
@@ -18,16 +20,29 @@ Item {
 
     implicitWidth: Theme.touch
     implicitHeight: Theme.touch
+    activeFocusOnTab: enabled && visible
+    Accessible.role: Accessible.Button
+    Accessible.name: accessibleName
+    Accessible.description: accessibleDescription
+    Accessible.onPressAction: if (enabled) root.tapped()
+    Keys.onReturnPressed: if (enabled) root.tapped()
+    Keys.onEnterPressed: if (enabled) root.tapped()
+    Keys.onSpacePressed: if (enabled) root.tapped()
 
     Rectangle {
         anchors.fill: parent
         radius: root.radius
         color: area.pressed ? root.pressedColor : root.background
+        border.width: root.activeFocus ? 2 : 0
+        border.color: Theme.accent
     }
     MouseArea {
         id: area
         anchors.fill: parent
-        onClicked: root.tapped()
+        onClicked: {
+            root.forceActiveFocus(Qt.MouseFocusReason);
+            root.tapped();
+        }
     }
     Item {
         id: holder

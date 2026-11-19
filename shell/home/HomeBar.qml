@@ -5,69 +5,64 @@ import qs
 import qs.services
 import qs.components
 
-// Bottom home bar: the device has no hardware home/back keys. A thin opaque
-// bar reserves Theme.homeBarHeight; the surface reaches further up with an
-// invisible strip so that the touch target is Theme.edgeTouch tall.
-//
-//   tap             home (dismiss what is open, else launcher)
-//   swipe up        launcher
-//   long swipe up   overview of the open windows
-//   right corner    on-screen keyboard toggle (when a keyboard is installed)
+// Visible navigation; every action works without a gesture.
 PanelWindow {
     id: win
-
-    anchors {
-        bottom: true
-        left: true
-        right: true
-    }
-    implicitHeight: Theme.edgeTouch
+    anchors { bottom: true; left: true; right: true }
+    implicitHeight: Theme.homeBarHeight
     exclusionMode: ExclusionMode.Normal
     exclusiveZone: Theme.homeBarHeight
-    color: "transparent"
+    color: Theme.barBg
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "flo-home"
-
-    Rectangle {
-        anchors.bottom: parent.bottom
-        width: parent.width
-        height: Theme.homeBarHeight
-        color: Theme.barBg
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: 132
-            height: 5
-            radius: 2.5
-            color: area.pressed ? Theme.accent : Theme.textDim
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    Row {
+        anchors.centerIn: parent
+        spacing: Theme.spaceS
+        Repeater {
+            model: [
+                { icon: "back", label: I18n.t("nav.back"), action: "back" },
+                { icon: "home", label: I18n.t("nav.home"), action: "home" },
+                { icon: "windows", label: I18n.t("nav.overview"), action: "overview" }
+            ]
+            Pressable {
+                id: nav
+                required property var modelData
+                width: Math.min(128, (win.width - (Keyboard.available ? Theme.touch : 0) - 4 * Theme.spaceS) / 3)
+                height: Theme.touch
+                accessibleName: modelData.label
+                background: modelData.action === "home" && Ui.homeOpen ? Theme.surfaceAlt : "transparent"
+                onTapped: {
+                    if (modelData.action === "home") Ui.home();
+                    else if (modelData.action === "back") Ui.back();
+                    else Ui.toggleOverview();
+                }
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 1
+                    Icon { anchors.horizontalCenter: parent.horizontalCenter; name: nav.modelData.icon; size: 23 }
+                    Label { anchors.horizontalCenter: parent.horizontalCenter; text: nav.modelData.label; font.pixelSize: Theme.fontSmall; Accessible.ignored: true }
+                }
+                DragHandler {
+                    target: null
+                    xAxis.enabled: false
+                    onActiveChanged: {
+                        if (active) return;
+                        const travel = centroid.scenePressPosition.y - centroid.scenePosition.y;
+                        if (travel > Theme.longSwipeThreshold) Ui.openOverview();
+                        else if (travel > Theme.swipeThreshold) Ui.openLauncher();
+                    }
+                }
+            }
         }
-        Icon {
+        IconButton {
             visible: Keyboard.available
-            anchors.verticalCenter: parent.verticalCenter
-            x: parent.width - keyboardButton.width / 2 - width / 2
-            name: "keyboard"
-            size: 18
-            color: keyboardButton.pressed || Keyboard.visible ? Theme.accent : Theme.textDim
+            width: Theme.touch
+            height: Theme.touch
+            icon: "keyboard"
+            accessibleName: I18n.t("nav.keyboard")
+            iconColor: Keyboard.visible ? Theme.accent : Theme.textDim
+            onTapped: Keyboard.toggle()
         }
-    }
-
-    EdgeArea {
-        id: area
-        anchors.fill: parent
-        longThreshold: Theme.longSwipeThreshold
-        onTapped: Ui.home()
-        onSwipedUp: Ui.openLauncher()
-        onSwipedUpLong: Compositor.showAppSwitcher()
-    }
-
-    // Keyboard toggle. The strip is only Theme.edgeTouch tall, so the target
-    // is made wider than a regular one to compensate.
-    MouseArea {
-        id: keyboardButton
-        visible: Keyboard.available
-        anchors.right: parent.right
-        width: Theme.touch + Theme.spaceL
-        height: parent.height
-        onClicked: Keyboard.toggle()
     }
 }

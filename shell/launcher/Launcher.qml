@@ -81,6 +81,7 @@ PanelWindow {
 
     Item {
         id: content
+        Keys.onEscapePressed: Ui.back()
 
         readonly property bool land: width > height
         readonly property int m: Theme.spaceM
@@ -91,16 +92,38 @@ PanelWindow {
             y: (1 - win.progress) * 28
         }
 
+        Item {
+            id: header
+            width: parent.width
+            // Leave a complete app row when a landscape keyboard is open.
+            height: content.height < 360 ? 0 : Theme.touch + Theme.spaceS
+            visible: height > 0
+            Label {
+                x: content.m
+                anchors.verticalCenter: parent.verticalCenter
+                text: I18n.t("home.allApps")
+                font.pixelSize: Theme.fontTitle
+                font.weight: Font.DemiBold
+            }
+            IconButton {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "close"
+                accessibleName: I18n.t("common.close")
+                onTapped: Ui.launcherOpen = false
+            }
+        }
         GridView {
             id: grid
 
-            readonly property int columns: Theme.launcherColumns
+            readonly property int columns: Math.max(1, Math.min(6, Math.floor(content.width / (128 * Theme.textScale))))
 
             x: Math.floor((content.width - cellWidth * columns) / 2)
             width: cellWidth * columns
-            height: (strip.visible && !content.land ? strip.y : searchBox.y) - Theme.spaceS
+            y: header.height
+            height: Math.max(0, (strip.visible && !content.land ? strip.y : searchBox.y) - y - Theme.spaceS)
             cellWidth: Math.floor(content.width / columns)
-            cellHeight: 116
+            cellHeight: Theme.appIconSize + 3 * Theme.spaceM + 2 * Theme.fontSmall * 1.3
             topMargin: Theme.spaceS
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -108,71 +131,16 @@ PanelWindow {
             // when going from a filtered list back to the full one.
             model: win.results
 
-            delegate: Pressable {
+            delegate: AppTile {
                 id: cell
-
                 required property var modelData
-                // modelData is null for an instant while the model shrinks.
                 readonly property bool isAgent: !!(modelData && modelData.isAgent)
-                readonly property bool isSettings: !!(modelData && modelData.isSettings)
-                readonly property string name: modelData ? modelData.name : ""
-                readonly property string iconSource: (!modelData || isAgent) ? "" : Apps.iconSource(modelData)
-
+                entry: isAgent ? null : modelData
+                agent: isAgent ? modelData : null
                 width: grid.cellWidth
                 height: grid.cellHeight
                 onTapped: win.launch(modelData)
 
-                IconImage {
-                    id: icon
-                    visible: cell.iconSource !== ""
-                    y: 14
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    implicitSize: Theme.appIconSize
-                    asynchronous: true
-                    source: cell.iconSource
-                }
-                // Generic bolt for agent rows (remote tools and Crush): no vendor logos.
-                Rectangle {
-                    visible: cell.isAgent
-                    y: 14
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: Theme.appIconSize
-                    height: Theme.appIconSize
-                    radius: Theme.radius
-                    color: Theme.surfaceAlt
-
-                    Icon {
-                        anchors.centerIn: parent
-                        name: cell.isSettings ? "settings" : "bolt"
-                        size: 28
-                        color: Theme.accent
-                    }
-                }
-                // Fallback when the icon theme has no match.
-                Rectangle {
-                    visible: cell.iconSource === "" && !cell.isAgent
-                    y: 14
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: Theme.appIconSize
-                    height: Theme.appIconSize
-                    radius: Theme.radius
-                    color: Theme.surfaceAlt
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: cell.name.charAt(0).toUpperCase()
-                        font.pixelSize: Theme.fontTitle + 4
-                        font.weight: Font.DemiBold
-                    }
-                }
-                Label {
-                    y: 14 + Theme.appIconSize + Theme.spaceS
-                    x: Theme.spaceXs
-                    width: parent.width - 2 * Theme.spaceXs
-                    horizontalAlignment: Text.AlignHCenter
-                    text: cell.name
-                    font.pixelSize: Theme.fontSmall
-                }
             }
         }
 
@@ -207,6 +175,7 @@ PanelWindow {
                 width: 220
                 height: strip.height
                 background: Theme.surfaceAlt
+                accessibleName: Compositor.windowTitle(modelData) || Compositor.windowAppId(modelData)
                 onTapped: {
                     Compositor.focusWindow(modelData);
                     Ui.launcherOpen = false;
@@ -225,6 +194,7 @@ PanelWindow {
                     width: Theme.touch
                     height: parent.height
                     icon: "close"
+                    accessibleName: I18n.t("common.close")
                     iconColor: Theme.textDim
                     onTapped: Compositor.closeWindow(chip.modelData)
                 }
@@ -259,6 +229,7 @@ PanelWindow {
             }
             TextInput {
                 id: search
+                Accessible.name: I18n.t("launcher.search")
                 anchors.left: searchIcon.right
                 anchors.leftMargin: Theme.spaceM
                 anchors.right: clearButton.left
@@ -299,6 +270,7 @@ PanelWindow {
                 radius: height / 2
                 visible: search.text !== ""
                 icon: "close"
+                accessibleName: I18n.t("launcher.clearSearch")
                 iconColor: Theme.textDim
                 onTapped: search.text = ""
             }

@@ -20,9 +20,9 @@ QtObject {
 
     // The overview is drawn by the shell (see Compositor.showAppSwitcher).
     readonly property bool supportsAppSwitch: false
-    // "Back" is a synthetic XF86Back key press: classic configuration only.
-    readonly property bool supportsBack: !lua
-    readonly property bool supportsDisplayPower: !lua
+    // "Back" is a synthetic XF86Back key press in either config format.
+    readonly property bool supportsBack: true
+    readonly property bool supportsDisplayPower: true
     readonly property bool supportsRotation: true
     // hyprland-toplevel-export-v1, used by ScreencopyView.
     readonly property bool supportsThumbnails: true
@@ -101,10 +101,10 @@ QtObject {
     }
 
     function goBack(): void {
-        Hyprland.dispatch("sendshortcut , XF86Back, activewindow");
+        _dispatch("sendshortcut , XF86Back, activewindow", 'hl.dsp.send_shortcut({ mods = "", key = "XF86Back", window = "activewindow" })');
     }
     function setDisplayPower(on: bool): void {
-        Hyprland.dispatch("dpms " + (on ? "on" : "off"));
+        _dispatch("dpms " + (on ? "on" : "off"), 'hl.dsp.dpms({ action = "' + (on ? "on" : "off") + '" })');
     }
 
     // ---- Rotation ---------------------------------------------------------
@@ -149,7 +149,14 @@ QtObject {
     }
 
     property Process _ctl: Process {
-        onExited: root._query.running = true
+        // The IPC reply precedes the output commit; querying immediately
+        // can report the old transform indefinitely. Refresh once after it.
+        onExited: monitorRefresh.restart()
+    }
+    property Timer monitorRefresh: Timer {
+        interval: 100
+        repeat: false
+        onTriggered: root._query.running = true
     }
     property Process _query: Process {
         command: ["hyprctl", "-j", "monitors"]

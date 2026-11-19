@@ -6,8 +6,8 @@ import qs.services
 import qs.components
 
 // Top status bar. The visible, opaque bar is Theme.barHeight tall and is
-// the only part that reserves space; the surface extends below it by an
-// invisible strip so that the pull-down gesture has a usable touch height.
+// the only part that reserves space. Input must not cover the app header;
+// Home also provides a full-size quick-controls button.
 PanelWindow {
     id: win
 
@@ -16,7 +16,7 @@ PanelWindow {
         left: true
         right: true
     }
-    implicitHeight: Theme.edgeTouch
+    implicitHeight: Theme.barHeight
     exclusionMode: ExclusionMode.Normal
     exclusiveZone: Theme.barHeight
     color: "transparent"

@@ -1,0 +1,41 @@
+#!/bin/sh
+# Start the session or greeter with the config supported by this Hyprland.
+# FLO_HYPRLAND_CONF / FLO_GREETER_CONF override the selected file.
+set -eu
+data=${FLO_SHELL_DATA:-@DATADIR@}
+mode=${1:-session}
+case "$mode" in
+    session) name=hyprland; conf=${FLO_HYPRLAND_CONF:-} ;;
+    greeter) name=greeter-hyprland; conf=${FLO_GREETER_CONF:-} ;;
+    *) echo 'usage: flo-hyprland [session|greeter]' >&2; exit 2 ;;
+esac
+
+version=$(Hyprland --version | sed -n 's/^Hyprland \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+case "$version" in
+    *.*) major=${version%%.*}; minor=${version#*.} ;;
+    *) echo 'flo-hyprland: cannot determine Hyprland version' >&2; exit 1 ;;
+esac
+ext=conf
+if [ "$major" -gt 0 ] || [ "$minor" -ge 55 ]; then ext=lua; fi
+
+if [ -z "$conf" ]; then
+    conf="$data/session/$name.$ext"
+    if [ "$mode" = session ]; then
+        userconf="${XDG_CONFIG_HOME:-$HOME/.config}/flo-shell/hyprland"
+        if [ -f "$userconf.$ext" ]; then
+            conf="$userconf.$ext"
+        elif [ "$ext" = lua ] && [ -f "$userconf.conf" ]; then
+            # Preserve existing customisation while the legacy reader exists.
+            conf="$userconf.conf"
+        fi
+    fi
+fi
+if { [ "$major" -gt 0 ] || [ "$minor" -ge 57 ]; } && [ "${conf##*.}" != lua ]; then
+    echo "flo-hyprland: convert $conf to Lua for Hyprland $version" >&2
+    exit 1
+fi
+[ -f "$conf" ] || { echo "flo-hyprland: config not found: $conf" >&2; exit 1; }
+if command -v start-hyprland >/dev/null 2>&1; then
+    exec start-hyprland -- -c "$conf"
+fi
+exec Hyprland -c "$conf"

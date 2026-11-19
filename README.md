@@ -30,6 +30,10 @@ meson setup build/sessiond sessiond && meson compile -C build/sessiond
 
 See `docs/TESTING.md` for checks to run on the device.
 
+The tablet integration preserves the backlight, greeter, lock, Home,
+Hyprland Lua and portal-dialog fixes. Its source and native test limits
+are recorded in [`docs/AGENT-PR-INTEGRATION.md`](docs/AGENT-PR-INTEGRATION.md).
+
 ## Agents (remote and local)
 
 flo-shell does not implement SSH or mosh and never writes the agent
@@ -87,9 +91,3 @@ under `dev/`.
 MIT, see `LICENSE`.
 
 The original Italian README is [`README.it.md`](README.it.md).
-
-## Branches
-
-- `main` – the shell as published
-- `fix/lock-before-dpms`, `fix/greeter-invisible-cursor` – fixes under test
-  on the tablet, not merged yet

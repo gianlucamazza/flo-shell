@@ -21,6 +21,9 @@ PanelWindow {
     property bool testing: false
     property bool keyBusy: false
     property bool wlCopyAvailable: false
+    property string section: "remote"
+    property bool remoteAdvanced: false
+    property bool localAdvanced: false
 
     property string host: ""
     property string user: ""
@@ -63,7 +66,7 @@ PanelWindow {
     readonly property var toolOrder: ["claude", "codex", "grok"]
     readonly property var localProviders: ["anthropic", "openai", "xai", "openai-compat", "ollama", "llamacpp"]
     readonly property bool needsBaseUrl: localProvider === "openai-compat" || localProvider === "ollama" || localProvider === "llamacpp"
-    readonly property bool needsApiKey: localProvider !== "ollama" && localProvider !== "llamacpp"
+    readonly property bool needsApiKey: localProvider !== "" && localProvider !== "ollama" && localProvider !== "llamacpp"
     readonly property bool localBusy: localActionProc.running
 
     Behavior on progress {
@@ -145,6 +148,17 @@ PanelWindow {
         || localProvider !== (loaded["local.provider"] || "")
         || localBaseUrl !== (loaded["local.base_url"] || "")
         || localModel !== (loaded["local.model"] || "")
+    readonly property bool remoteDirty: host !== (loaded.host || "")
+        || user !== (loaded.user || "")
+        || port !== (loaded.port || "")
+        || transport !== (loaded.transport || "")
+        || agentsValue() !== (loaded.agents || "")
+        || enabledDefault() !== (loaded.default || "")
+        || claudeCmd !== (loaded["cmd.claude"] || "")
+        || codexCmd !== (loaded["cmd.codex"] || "")
+        || grokCmd !== (loaded["cmd.grok"] || "")
+        || (tmuxOn ? "on" : "off") !== (loaded.tmux || "")
+        || tmuxPrefix !== (loaded.tmux_prefix || "")
 
     function applyConfig(text: string): void {
         let o;
@@ -263,7 +277,7 @@ PanelWindow {
     }
 
     function testConn(): void {
-        if (testing || checkProc.running)
+        if (testing || checkProc.running || remoteDirty)
             return;
         testing = true;
         checkDone = false;
@@ -323,6 +337,16 @@ PanelWindow {
                 fe[parts[1]] = parts[2];
         }
         fieldErrors = fe;
+        if (fe["local.provider"] || fe["local.base_url"] || fe["local.model"])
+            section = "local";
+        else if (Object.keys(fe).length > 0)
+            section = "remote";
+        if (fe.port || fe.transport || fe.tmux_prefix || fe["cmd.claude"] || fe["cmd.codex"] || fe["cmd.grok"]) {
+            remoteAdvanced = true;
+            Qt.callLater(() => flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, remoteSection.y + remoteAdvancedButton.y)));
+        } else if (Object.keys(fe).length > 0) {
+            flick.contentY = 0;
+        }
         if (jsonText.trim() !== "")
             applyConfig(jsonText.trim());
     }
@@ -365,6 +389,9 @@ PanelWindow {
 
     onOpenChanged: {
         if (open) {
+            section = "remote";
+            remoteAdvanced = false;
+            localAdvanced = false;
             load();
         } else {
             if (win.raisedKeyboard)
@@ -564,402 +591,504 @@ PanelWindow {
                 width: flick.width
                 spacing: Theme.spaceM
 
-                FormField {
-                    label: I18n.t("agents.host")
-                    text: win.host
-                    error: win.errOf("host")
-                    onEdited: value => win.host = value
-                    onFocused: win.raiseKeyboard()
-                }
-                FormField {
-                    label: I18n.t("agents.user")
-                    text: win.user
-                    error: win.errOf("user")
-                    onEdited: value => win.user = value
-                    onFocused: win.raiseKeyboard()
-                }
-                FormField {
-                    label: I18n.t("agents.port")
-                    text: win.port
-                    error: win.errOf("port")
-                    inputMethodHints: Qt.ImhDigitsOnly
-                    onEdited: value => win.port = value
-                    onFocused: win.raiseKeyboard()
-                }
-
-                Label {
-                    text: I18n.t("agents.transport")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
                 Row {
                     width: parent.width
                     spacing: Theme.spaceS
 
-                    ToggleTile {
-                        width: Math.floor((parent.width - parent.spacing) / 2)
-                        icon: "bolt"
-                        label: I18n.t("agents.mosh")
-                        active: win.transport === "mosh"
-                        onTapped: win.transport = "mosh"
-                    }
-                    ToggleTile {
-                        width: Math.floor((parent.width - parent.spacing) / 2)
-                        icon: "lock"
-                        label: I18n.t("agents.ssh")
-                        active: win.transport === "ssh"
-                        onTapped: win.transport = "ssh"
-                    }
-                }
-                Label {
-                    visible: win.errOf("transport") !== ""
-                    width: parent.width
-                    text: win.errOf("transport")
-                    color: Theme.danger
-                    font.pixelSize: Theme.fontSmall
-                    wrapMode: Text.Wrap
-                }
-
-                Label {
-                    text: I18n.t("agents.tools")
-                    font.weight: Font.DemiBold
-                }
-                Repeater {
-                    model: win.toolOrder
-                    delegate: Column {
-                        required property string modelData
-                        width: form.width
-                        spacing: Theme.spaceXs
-
-                        ToggleTile {
-                            width: parent.width
-                            icon: "bolt"
-                            label: modelData === "claude" ? "Claude Code" : modelData === "codex" ? "Codex" : "Grok Build"
-                            detail: I18n.t("agents.remote")
-                            active: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
+                    Repeater {
+                        model: ["remote", "local"]
+                        delegate: Pressable {
+                            required property string modelData
+                            width: Math.floor((form.width - Theme.spaceS) / 2)
+                            height: Theme.touch
+                            background: win.section === modelData ? Theme.accent : Theme.surfaceAlt
+                            accessibleName: modelData === "remote" ? I18n.t("agents.remoteSection") : I18n.t("agents.localSection")
                             onTapped: {
-                                if (modelData === "claude")
-                                    win.claudeOn = !win.claudeOn;
-                                else if (modelData === "codex")
-                                    win.codexOn = !win.codexOn;
-                                else
-                                    win.grokOn = !win.grokOn;
-                                win.defaultAgent = win.enabledDefault();
+                                win.section = modelData;
+                                flick.contentY = 0;
                             }
-                        }
-                        FormField {
-                            visible: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
-                            label: I18n.t("agents.remoteCmd")
-                            text: modelData === "claude" ? win.claudeCmd : modelData === "codex" ? win.codexCmd : win.grokCmd
-                            error: win.errOf("cmd." + modelData)
-                            onEdited: value => {
-                                if (modelData === "claude")
-                                    win.claudeCmd = value;
-                                else if (modelData === "codex")
-                                    win.codexCmd = value;
-                                else
-                                    win.grokCmd = value;
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: modelData === "remote" ? I18n.t("agents.remoteSection") : I18n.t("agents.localSection")
+                                color: win.section === modelData ? Theme.accentText : Theme.text
+                                font.weight: Font.DemiBold
                             }
-                            onFocused: win.raiseKeyboard()
                         }
                     }
                 }
-                Label {
-                    visible: win.errOf("agents") !== ""
-                    width: parent.width
-                    text: win.errOf("agents")
-                    color: Theme.danger
-                    font.pixelSize: Theme.fontSmall
-                    wrapMode: Text.Wrap
-                }
 
-                Label {
-                    visible: win.claudeOn || win.codexOn || win.grokOn
-                    text: I18n.t("agents.default")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Row {
-                    visible: win.claudeOn || win.codexOn || win.grokOn
+                Column {
+                    id: remoteSection
+                    visible: win.section === "remote"
                     width: parent.width
-                    spacing: Theme.spaceS
-
+                    spacing: Theme.spaceM
+                    FormField {
+                        label: I18n.t("agents.host")
+                        text: win.host
+                        error: win.errOf("host")
+                        onEdited: value => win.host = value
+                        onFocused: win.raiseKeyboard()
+                    }
+                    FormField {
+                        label: I18n.t("agents.user")
+                        text: win.user
+                        error: win.errOf("user")
+                        onEdited: value => win.user = value
+                        onFocused: win.raiseKeyboard()
+                    }
+                    Label {
+                        text: I18n.t("agents.tools")
+                        font.weight: Font.DemiBold
+                    }
                     Repeater {
                         model: win.toolOrder
-                        delegate: Pressable {
+                        delegate: Column {
                             required property string modelData
-                            visible: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
-                            width: visible ? Math.floor((form.width - 2 * Theme.spaceS) / Math.max(1, (win.claudeOn ? 1 : 0) + (win.codexOn ? 1 : 0) + (win.grokOn ? 1 : 0))) : 0
-                            height: Theme.touch
-                            background: win.defaultAgent === modelData ? Theme.accent : Theme.surfaceAlt
-                            onTapped: win.defaultAgent = modelData
+                            width: form.width
+                            spacing: Theme.spaceXs
 
-                            Label {
-                                anchors.centerIn: parent
-                                text: modelData === "claude" ? "Claude" : modelData === "codex" ? "Codex" : "Grok"
-                                color: win.defaultAgent === modelData ? Theme.accentText : Theme.text
+                            ToggleTile {
+                                width: parent.width
+                            height: Theme.touch
+                                icon: "bolt"
+                                label: modelData === "claude" ? "Claude Code" : modelData === "codex" ? "Codex" : "Grok Build"
+                                active: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
+                                onTapped: {
+                                    if (modelData === "claude")
+                                        win.claudeOn = !win.claudeOn;
+                                    else if (modelData === "codex")
+                                        win.codexOn = !win.codexOn;
+                                    else
+                                        win.grokOn = !win.grokOn;
+                                    win.defaultAgent = win.enabledDefault();
+                                }
                             }
                         }
                     }
-                }
-                Label {
-                    visible: win.errOf("default") !== ""
-                    width: parent.width
-                    text: win.errOf("default")
-                    color: Theme.danger
-                    font.pixelSize: Theme.fontSmall
-                    wrapMode: Text.Wrap
-                }
-
-                ToggleTile {
-                    width: parent.width
-                    icon: "windows"
-                    label: I18n.t("agents.tmux")
-                    detail: win.tmuxOn ? I18n.t("qs.on") : I18n.t("qs.off")
-                    active: win.tmuxOn
-                    onTapped: win.tmuxOn = !win.tmuxOn
-                }
-                FormField {
-                    visible: win.tmuxOn
-                    label: I18n.t("agents.tmuxPrefix")
-                    text: win.tmuxPrefix
-                    error: win.errOf("tmux_prefix")
-                    onEdited: value => win.tmuxPrefix = value
-                    onFocused: win.raiseKeyboard()
-                }
-
-                Label {
-                    text: I18n.t("agents.localCrush")
-                    font.weight: Font.DemiBold
-                }
-                Label {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: I18n.t("agents.installHint")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Pressable {
-                    width: parent.width
-                    height: Theme.touch
-                    background: Theme.surfaceAlt
-                    opacity: win.localBusy ? 0.45 : 1
-                    enabled: !win.localBusy
-                    onTapped: win.runLocal(win.crushInstalled ? "uninstall" : "install")
+                    Label {
+                        visible: win.errOf("agents") !== ""
+                        width: parent.width
+                        text: win.errOf("agents")
+                        color: Theme.danger
+                        font.pixelSize: Theme.fontSmall
+                        wrapMode: Text.Wrap
+                    }
 
                     Label {
-                        anchors.centerIn: parent
-                        text: win.localBusy ? (win.crushInstalled ? I18n.t("agents.uninstalling") : I18n.t("agents.installing")) : (win.crushInstalled ? I18n.t("agents.uninstall") : I18n.t("agents.install"))
+                        visible: win.claudeOn || win.codexOn || win.grokOn
+                        text: I18n.t("agents.default")
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Row {
+                        visible: win.claudeOn || win.codexOn || win.grokOn
+                        width: parent.width
+                        spacing: Theme.spaceS
+
+                        Repeater {
+                            model: win.toolOrder
+                            delegate: Pressable {
+                                required property string modelData
+                                visible: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
+                                width: visible ? Math.floor((form.width - 2 * Theme.spaceS) / Math.max(1, (win.claudeOn ? 1 : 0) + (win.codexOn ? 1 : 0) + (win.grokOn ? 1 : 0))) : 0
+                                height: Theme.touch
+                                background: win.defaultAgent === modelData ? Theme.accent : Theme.surfaceAlt
+                                onTapped: win.defaultAgent = modelData
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: modelData === "claude" ? "Claude" : modelData === "codex" ? "Codex" : "Grok"
+                                    color: win.defaultAgent === modelData ? Theme.accentText : Theme.text
+                                }
+                            }
+                        }
+                    }
+                    Label {
+                        visible: win.errOf("default") !== ""
+                        width: parent.width
+                        text: win.errOf("default")
+                        color: Theme.danger
+                        font.pixelSize: Theme.fontSmall
+                        wrapMode: Text.Wrap
+                    }
+
+                    Label {
+                        text: I18n.t("agents.deviceKey")
                         font.weight: Font.DemiBold
                     }
-                }
-                Label {
-                    visible: win.crushVersion !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: I18n.t("agents.crushVersion", win.crushVersion)
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Label {
-                    visible: win.localActionMsg !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: win.localActionMsg
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Label {
-                    visible: win.errOf("local.provider") !== "" || win.errOf("local.base_url") !== "" || win.errOf("local.model") !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: win.errOf("local.provider") || win.errOf("local.base_url") || win.errOf("local.model")
-                    color: Theme.danger
-                    font.pixelSize: Theme.fontSmall
-                }
-                Label {
-                    text: I18n.t("agents.provider")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Flow {
-                    width: parent.width
-                    spacing: Theme.spaceS
+                    Pressable {
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        onTapped: win.createKey()
 
+                        Label {
+                            anchors.centerIn: parent
+                            text: win.keyBusy ? I18n.t("agents.working") : (win.keyPresent ? I18n.t("agents.showKey") : I18n.t("agents.createKey"))
+                        }
+                    }
+                    TextEdit {
+                        visible: win.publicKey !== ""
+                        width: parent.width
+                        readOnly: true
+                        wrapMode: TextEdit.Wrap
+                        selectByMouse: true
+                        color: Theme.text
+                        selectedTextColor: Theme.accentText
+                        selectionColor: Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSmall
+                        text: win.publicKey
+                    }
+                    Pressable {
+                        visible: win.publicKey !== "" && win.wlCopyAvailable
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        onTapped: win.copyKey()
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: I18n.t("agents.copy")
+                        }
+                    }
+                    Label {
+                        visible: win.publicKey !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: I18n.t("agents.authorizedKeysHint")
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Image {
+                        visible: win.qrPath !== ""
+                        width: Math.min(parent.width, 220)
+                        height: visible ? width : 0
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        source: win.qrPath === "" ? "" : "file://" + win.qrPath
+                    }
+
+                    Pressable {
+                        id: remoteAdvancedButton
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        accessibleName: I18n.t("agents.advanced")
+                        onTapped: win.remoteAdvanced = !win.remoteAdvanced
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: I18n.t("agents.advanced") + (win.remoteAdvanced ? " −" : " +")
+                        }
+                    }
+                    Column {
+                        visible: win.remoteAdvanced
+                        width: parent.width
+                        spacing: Theme.spaceM
+                        FormField {
+                            label: I18n.t("agents.port")
+                            text: win.port
+                            error: win.errOf("port")
+                            inputMethodHints: Qt.ImhDigitsOnly
+                            onEdited: value => win.port = value
+                            onFocused: win.raiseKeyboard()
+                        }
+
+                        Label {
+                            text: I18n.t("agents.transport")
+                            color: Theme.textDim
+                            font.pixelSize: Theme.fontSmall
+                        }
+                        Row {
+                            width: parent.width
+                            spacing: Theme.spaceS
+
+                            ToggleTile {
+                                width: Math.floor((parent.width - parent.spacing) / 2)
+                                icon: "bolt"
+                                label: I18n.t("agents.mosh")
+                                active: win.transport === "mosh"
+                                onTapped: win.transport = "mosh"
+                            }
+                            ToggleTile {
+                                width: Math.floor((parent.width - parent.spacing) / 2)
+                                icon: "lock"
+                                label: I18n.t("agents.ssh")
+                                active: win.transport === "ssh"
+                                onTapped: win.transport = "ssh"
+                            }
+                        }
+                        Label {
+                            visible: win.errOf("transport") !== ""
+                            width: parent.width
+                            text: win.errOf("transport")
+                            color: Theme.danger
+                            font.pixelSize: Theme.fontSmall
+                            wrapMode: Text.Wrap
+                        }
+
+                        Repeater {
+                            model: win.toolOrder
+                            delegate: FormField {
+                                required property string modelData
+                                width: remoteSection.width
+                                visible: modelData === "claude" ? win.claudeOn : modelData === "codex" ? win.codexOn : win.grokOn
+                                label: (modelData === "claude" ? "Claude Code" : modelData === "codex" ? "Codex" : "Grok Build") + " · " + I18n.t("agents.remoteCmd")
+                                text: modelData === "claude" ? win.claudeCmd : modelData === "codex" ? win.codexCmd : win.grokCmd
+                                error: win.errOf("cmd." + modelData)
+                                onEdited: value => {
+                                    if (modelData === "claude")
+                                        win.claudeCmd = value;
+                                    else if (modelData === "codex")
+                                        win.codexCmd = value;
+                                    else
+                                        win.grokCmd = value;
+                                }
+                                onFocused: win.raiseKeyboard()
+                            }
+                        }
+                        ToggleTile {
+                            width: parent.width
+                            icon: "windows"
+                            label: I18n.t("agents.tmux")
+                            detail: win.tmuxOn ? I18n.t("qs.on") : I18n.t("qs.off")
+                            active: win.tmuxOn
+                            onTapped: win.tmuxOn = !win.tmuxOn
+                        }
+                        FormField {
+                            visible: win.tmuxOn
+                            label: I18n.t("agents.tmuxPrefix")
+                            text: win.tmuxPrefix
+                            error: win.errOf("tmux_prefix")
+                            onEdited: value => win.tmuxPrefix = value
+                            onFocused: win.raiseKeyboard()
+                        }
+
+                    }
+
+                    Label {
+                        visible: win.checkDone
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: win.reachable ? I18n.t("agents.reachable") : I18n.t("agents.unreachable")
+                        color: win.reachable ? Theme.ok : Theme.danger
+                        font.weight: Font.DemiBold
+                    }
+                    Label {
+                        visible: win.checkDone && win.checkError !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: win.checkError
+                        color: Theme.danger
+                    }
                     Repeater {
-                        model: win.localProviders
-                        delegate: Pressable {
+                        model: win.checkDone ? win.toolOrder : []
+                        delegate: Label {
                             required property string modelData
-                            width: Math.floor((form.width - 2 * Theme.spaceS) / 3)
+                            width: form.width
+                            visible: win.agentState(modelData) !== ""
+                            text: (modelData === "claude" ? "Claude Code" : modelData === "codex" ? "Codex" : "Grok Build") + ": " + win.agentState(modelData)
+                            color: (win.agentStatus[modelData] === "missing") ? Theme.warn : Theme.text
+                        }
+                    }
+                    Label {
+                        visible: win.checkDone && win.hostKeyText() !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: win.hostKeyText()
+                        color: win.hostKey === "changed" ? Theme.danger : Theme.textDim
+                    }
+                }
+                Column {
+                    id: localSection
+                    visible: win.section === "local"
+                    width: parent.width
+                    spacing: Theme.spaceM
+                    Label {
+                        text: I18n.t("agents.localCrush")
+                        font.weight: Font.DemiBold
+                    }
+                    Label {
+                        visible: !win.crushInstalled
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: I18n.t("agents.installHint")
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Pressable {
+                        visible: !win.crushInstalled
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        opacity: win.localBusy ? 0.45 : 1
+                        enabled: !win.localBusy
+                        onTapped: win.runLocal("install")
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: win.localBusy ? I18n.t("agents.installing") : I18n.t("agents.install")
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Label {
+                        visible: win.crushInstalled
+                        width: parent.width
+                        text: I18n.t("agents.installed")
+                        color: Theme.ok
+                    }
+                    Label {
+                        visible: win.crushVersion !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: I18n.t("agents.crushVersion", win.crushVersion)
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Label {
+                        visible: win.localActionMsg !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: win.localActionMsg
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Label {
+                        visible: win.errOf("local.provider") !== "" || win.errOf("local.base_url") !== "" || win.errOf("local.model") !== ""
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: win.errOf("local.provider") || win.errOf("local.base_url") || win.errOf("local.model")
+                        color: Theme.danger
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Label {
+                        text: I18n.t("agents.provider")
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: Theme.spaceS
+
+                        Repeater {
+                            model: win.localProviders
+                            delegate: Pressable {
+                                required property string modelData
+                                width: Math.floor((form.width - 2 * Theme.spaceS) / 3)
+                                height: Theme.touch
+                                background: win.localProvider === modelData ? Theme.accent : Theme.surfaceAlt
+                                onTapped: win.localProvider = modelData
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: modelData === "anthropic" ? "Anthropic" : modelData === "openai" ? "OpenAI" : modelData === "xai" ? "xAI" : modelData === "openai-compat" ? I18n.t("agents.openAiCompatible") : modelData === "llamacpp" ? "llama.cpp" : "Ollama"
+                                    color: win.localProvider === modelData ? Theme.accentText : Theme.text
+                                    font.pixelSize: Theme.fontSmall
+                                }
+                            }
+                        }
+                    }
+                    FormField {
+                        visible: win.needsBaseUrl
+                        label: I18n.t("agents.baseUrl")
+                        text: win.localBaseUrl
+                        error: win.errOf("local.base_url")
+                        onEdited: value => win.localBaseUrl = value
+                        onFocused: win.raiseKeyboard()
+                    }
+                    FormField {
+                        label: I18n.t("agents.model")
+                        text: win.localModel
+                        error: win.errOf("local.model")
+                        onEdited: value => win.localModel = value
+                        onFocused: win.raiseKeyboard()
+                    }
+                    FormField {
+                        id: apiKeyField
+                        visible: win.needsApiKey
+                        masked: true
+                        label: I18n.t("agents.apiKey")
+                        onEdited: value => win.apiKeyTyped = value !== ""
+                        onFocused: win.raiseKeyboard()
+                    }
+                    Label {
+                        visible: win.secretSet && win.needsApiKey
+                        width: parent.width
+                        text: I18n.t("agents.keySet", win.secretLast4)
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Label {
+                        visible: !win.secretSet && win.needsApiKey
+                        width: parent.width
+                        text: I18n.t("agents.keyUnset")
+                        color: Theme.textDim
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Pressable {
+                        visible: win.needsApiKey
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        opacity: win.secretBusy || !win.apiKeyTyped ? 0.45 : 1
+                        enabled: !win.secretBusy && win.apiKeyTyped
+                        onTapped: win.saveApiKey()
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: win.secretBusy ? I18n.t("agents.working") : I18n.t("agents.saveKey")
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Pressable {
+                        width: parent.width
+                        height: Theme.touch
+                        background: Theme.surfaceAlt
+                        accessibleName: I18n.t("agents.advanced")
+                        onTapped: win.localAdvanced = !win.localAdvanced
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: I18n.t("agents.advanced") + (win.localAdvanced ? " −" : " +")
+                        }
+                    }
+                    Column {
+                        visible: win.localAdvanced
+                        width: parent.width
+                        spacing: Theme.spaceM
+                        Pressable {
+                            visible: win.secretSet
+                            width: parent.width
                             height: Theme.touch
-                            background: win.localProvider === modelData ? Theme.accent : Theme.surfaceAlt
-                            onTapped: win.localProvider = modelData
+                            background: Theme.surfaceAlt
+                            opacity: win.secretBusy ? 0.45 : 1
+                            enabled: !win.secretBusy
+                            onTapped: win.removeApiKey()
 
                             Label {
                                 anchors.centerIn: parent
-                                text: modelData
-                                color: win.localProvider === modelData ? Theme.accentText : Theme.text
-                                font.pixelSize: Theme.fontSmall
+                                text: I18n.t("agents.removeKey")
+                            }
+                        }
+                        Pressable {
+                            visible: win.crushInstalled
+                            width: parent.width
+                            height: Theme.touch
+                            background: Theme.surfaceAlt
+                            opacity: win.localBusy ? 0.45 : 1
+                            enabled: !win.localBusy
+                            onTapped: win.runLocal("uninstall")
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: win.localBusy ? I18n.t("agents.uninstalling") : I18n.t("agents.uninstall")
                             }
                         }
                     }
                 }
-                FormField {
-                    visible: win.needsBaseUrl
-                    label: I18n.t("agents.baseUrl")
-                    text: win.localBaseUrl
-                    error: win.errOf("local.base_url")
-                    onEdited: value => win.localBaseUrl = value
-                    onFocused: win.raiseKeyboard()
-                }
-                FormField {
-                    label: I18n.t("agents.model")
-                    text: win.localModel
-                    error: win.errOf("local.model")
-                    onEdited: value => win.localModel = value
-                    onFocused: win.raiseKeyboard()
-                }
-                FormField {
-                    id: apiKeyField
-                    visible: win.needsApiKey
-                    masked: true
-                    label: I18n.t("agents.apiKey")
-                    onEdited: value => win.apiKeyTyped = value !== ""
-                    onFocused: win.raiseKeyboard()
-                }
-                Label {
-                    visible: win.secretSet
-                    width: parent.width
-                    text: I18n.t("agents.keySet", win.secretLast4)
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Label {
-                    visible: !win.secretSet && win.needsApiKey
-                    width: parent.width
-                    text: I18n.t("agents.keyUnset")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Pressable {
-                    visible: win.needsApiKey
-                    width: parent.width
-                    height: Theme.touch
-                    background: Theme.surfaceAlt
-                    opacity: win.secretBusy || !win.apiKeyTyped ? 0.45 : 1
-                    enabled: !win.secretBusy && win.apiKeyTyped
-                    onTapped: win.saveApiKey()
 
-                    Label {
-                        anchors.centerIn: parent
-                        text: win.secretBusy ? I18n.t("agents.working") : I18n.t("agents.saveKey")
-                        font.weight: Font.DemiBold
-                    }
-                }
-                Pressable {
-                    visible: win.secretSet
-                    width: parent.width
-                    height: Theme.touch
-                    background: Theme.surfaceAlt
-                    opacity: win.secretBusy ? 0.45 : 1
-                    enabled: !win.secretBusy
-                    onTapped: win.removeApiKey()
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: I18n.t("agents.removeKey")
-                    }
-                }
-
-                Label {
-                    text: I18n.t("agents.deviceKey")
-                    font.weight: Font.DemiBold
-                }
-                Pressable {
-                    width: parent.width
-                    height: Theme.touch
-                    background: Theme.surfaceAlt
-                    onTapped: win.createKey()
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: win.keyBusy ? I18n.t("agents.working") : (win.keyPresent ? I18n.t("agents.showKey") : I18n.t("agents.createKey"))
-                    }
-                }
-                TextEdit {
-                    visible: win.publicKey !== ""
-                    width: parent.width
-                    readOnly: true
-                    wrapMode: TextEdit.Wrap
-                    selectByMouse: true
-                    color: Theme.text
-                    selectedTextColor: Theme.accentText
-                    selectionColor: Theme.accent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSmall
-                    text: win.publicKey
-                }
-                Pressable {
-                    visible: win.publicKey !== "" && win.wlCopyAvailable
-                    width: parent.width
-                    height: Theme.touch
-                    background: Theme.surfaceAlt
-                    onTapped: win.copyKey()
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: I18n.t("agents.copy")
-                    }
-                }
-                Label {
-                    visible: win.publicKey !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: I18n.t("agents.authorizedKeysHint")
-                    color: Theme.textDim
-                    font.pixelSize: Theme.fontSmall
-                }
-                Image {
-                    visible: win.qrPath !== ""
-                    width: Math.min(parent.width, 220)
-                    height: visible ? width : 0
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
-                    source: win.qrPath === "" ? "" : "file://" + win.qrPath
-                }
-
-                Label {
-                    visible: win.checkDone
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: win.reachable ? I18n.t("agents.reachable") : I18n.t("agents.unreachable")
-                    color: win.reachable ? Theme.ok : Theme.danger
-                    font.weight: Font.DemiBold
-                }
-                Label {
-                    visible: win.checkDone && win.checkError !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: win.checkError
-                    color: Theme.danger
-                }
-                Repeater {
-                    model: win.checkDone ? win.toolOrder : []
-                    delegate: Label {
-                        required property string modelData
-                        width: form.width
-                        visible: win.agentState(modelData) !== ""
-                        text: (modelData === "claude" ? "Claude Code" : modelData === "codex" ? "Codex" : "Grok Build") + ": " + win.agentState(modelData)
-                        color: (win.agentStatus[modelData] === "missing") ? Theme.warn : Theme.text
-                    }
-                }
-                Label {
-                    visible: win.checkDone && win.hostKeyText() !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: win.hostKeyText()
-                    color: win.hostKey === "changed" ? Theme.danger : Theme.textDim
-                }
             }
         }
 
@@ -990,13 +1119,14 @@ PanelWindow {
                 width: parent.width
                 height: Theme.touch
                 background: Theme.surfaceAlt
-                opacity: win.testing ? 0.45 : 1
-                enabled: !win.testing
+                visible: win.section === "remote"
+                opacity: win.testing || win.remoteDirty ? 0.45 : 1
+                enabled: !win.testing && !win.remoteDirty
                 onTapped: win.testConn()
 
                 Label {
                     anchors.centerIn: parent
-                    text: win.testing ? I18n.t("agents.testing") : I18n.t("agents.test")
+                    text: win.testing ? I18n.t("agents.testing") : win.remoteDirty ? I18n.t("agents.saveBeforeTest") : I18n.t("agents.test")
                     font.weight: Font.DemiBold
                 }
             }

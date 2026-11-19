@@ -1,18 +1,10 @@
 #!/bin/sh
 # flo-shell Wayland session: Hyprland with the tablet configuration, which
-# starts the shell (exec-once = flo-shell run). Started by greetd through
+# starts the shell. Started by greetd through
 # the flo-shell greeter or any other greeter (see flo-shell.desktop).
 #
 #   FLO_HYPRLAND_CONF   configuration file to use instead of the defaults
 set -u
-
-data=${FLO_SHELL_DATA:-@DATADIR@}
-
-conf=${FLO_HYPRLAND_CONF:-}
-if [ -z "$conf" ]; then
-    conf="${XDG_CONFIG_HOME:-$HOME/.config}/flo-shell/hyprland.conf"
-    [ -f "$conf" ] || conf="$data/session/hyprland.conf"
-fi
 
 export XDG_SESSION_TYPE=wayland
 export XDG_SESSION_DESKTOP=flo-shell
@@ -20,11 +12,7 @@ export XDG_CURRENT_DESKTOP=Hyprland
 
 # start-hyprland is the supervising launcher shipped with Hyprland; it watches
 # the compositor, and starting Hyprland directly makes it show a warning.
-if command -v start-hyprland > /dev/null 2>&1; then
-    set -- start-hyprland -- -c "$conf"
-else
-    set -- Hyprland -c "$conf"
-fi
+set -- flo-hyprland session
 
 # The shell handles the power key (lock, power menu): keep logind from
 # powering off on it for as long as the session lives.

@@ -21,7 +21,7 @@ CLOSERS = {v: k for k, v in PAIRS.items()}
 
 def iter_qml(root: Path):
     for path in sorted(root.rglob("*.qml")):
-        if any(part in SKIP_DIRS for part in path.parts):
+        if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
             continue
         yield path
 

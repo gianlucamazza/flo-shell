@@ -43,8 +43,9 @@ greeter/
   Device.qml Theme.qml I18n.qml components lock services
                        collegamenti simbolici verso ../shell
 session/
-  hyprland.conf        configurazione del tablet (sintassi classica)
-  greeter-hyprland.conf  compositore minimo per il greeter
+  hyprland.conf / .lua  configurazione del tablet (0.54 / >= 0.55)
+  greeter-hyprland.conf / .lua  compositore minimo per il greeter
+  flo-hyprland.in      selezione della sintassi e avvio del compositore
   flo-session.in       avvio della sessione → /usr/bin/flo-session
   flo-shell.in         avvio/IPC della shell → /usr/bin/flo-shell
   flo-shell.desktop    voce in /usr/share/wayland-sessions
@@ -55,8 +56,8 @@ dev/
   hyprland-nested.conf / .lua   configurazione del compositore annidato
   pam-check.sh, fake-greetd.py, fake-wvkbd.sh   controparti finte per le prove
 scripts/
-  flo-agent-session    wrapper: `flo-agents list` / `flo-agents launch` (crush = Crush (local))
-  flo-agent-config     wrapper argv-safe: config get/set, check, key, local, secret (chiave API solo su stdin)
+  flo-agent-session    wrapper: `flo-agents list` / `flo-agents launch` (crush = Crush locale)
+  flo-agent-config     wrapper con argomenti separati: config, check, key, local, secret (chiave API solo su stdin)
 Makefile               install / uninstall / check
 ```
 
@@ -64,8 +65,8 @@ Superfici (tutte layer-shell, tutte opache tranne le due strisce tattili):
 
 | Superficie | Livello | Note |
 |---|---|---|
-| Barra di stato | top | 30 px visibili e riservati, superficie di 48 px |
-| Barra home | top | 20 px visibili e riservati, superficie di 48 px |
+| Barra di stato | top | 30 px visibili e riservati; non intercetta i controlli delle app |
+| Barra home | top | 68 px riservati; Indietro, Home, App aperte e tastiera, bersagli da 60 px |
 | Launcher, impostazioni rapide, impostazioni agenti | overlay | create al primo uso, poi tenute in memoria |
 | Menu di alimentazione | overlay | a tutto schermo, copre anche le barre |
 | Panoramica | overlay | tra le due barre, creata al primo uso |
@@ -87,6 +88,18 @@ Scelta del backend: `hyprland` se è impostata `HYPRLAND_INSTANCE_SIGNATURE`,
 altrimenti `wlr` (wlr-foreign-toplevel-management tramite `ToplevelManager`).
 `FLO_COMPOSITOR=wlr|hyprland` forza la scelta. Se il backend Hyprland non si
 carica si ripiega su `wlr`.
+
+`flo-session` e greetd (`flo-hyprland greeter`) scelgono automaticamente
+la configurazione classica su Hyprland 0.54 e Lua dalla 0.55. La sessione
+preferisce il file utente `~/.config/flo-shell/hyprland.lua` nelle versioni
+Lua; un precedente `hyprland.conf` continua a essere rispettato fino alla
+0.56. Dalla 0.57, se resta solo quel file, l'avvio si ferma con un messaggio
+di migrazione anziché ignorare le personalizzazioni. `FLO_HYPRLAND_CONF`
+e `FLO_GREETER_CONF` permettono di indicare un file esplicito.
+
+Il backend Quickshell sceglie i dispatcher tramite `Hyprland.usingLua`,
+compresi DPMS, Indietro e rotazione. Il greeter Lua mantiene il cursore
+sempre invisibile come quello classico.
 
 Un backend è un `QtObject` con:
 
@@ -181,6 +194,15 @@ ne è lo stato: `Session.lock()` lo attiva (menu di alimentazione, tasto di
 accensione, inattività, IPC), `Session.unlock()` lo toglie dopo
 un'autenticazione riuscita.
 
+`Session.lockSecure` segue `WlSessionLock.secure`: distingue la richiesta di
+blocco dalla conferma del compositore. Lo spegnimento richiesto dal tasto o
+dall'inattività resta pendente finché il blocco non è confermato, così il
+primo frame della lock screen può essere presentato. Una richiesta di
+riaccensione o uno sblocco annulla lo spegnimento pendente, anche se la
+conferma arriva più tardi. La riaccensione conserva sempre il requisito PAM.
+`dev/test-session-lock.py` verifica quest'ordine usando il servizio QML reale;
+la conferma e il ciclo DPMS vanno verificati anche sul compositore nativo.
+
 - **Contenuto**: ora, data, batteria, numero di notifiche (mai il contenuto)
   e il tastierino `AuthPad`: numerico per il PIN, con il tasto `abc` che
   passa a un campo di testo con la tastiera interna `KeyGrid`. Sopra una
@@ -200,9 +222,12 @@ un'autenticazione riuscita.
   è legata al rilascio; il rilascio che segue una pressione lunga viene
   ignorato dalla shell (finestra di 1,5 s).
 - **Se la shell muore da bloccata** il compositore resta bloccato. La shell
-  scrive `$XDG_RUNTIME_DIR/flo-shell.locked` quando blocca e lo cancella
-  quando sblocca; `flo-shell run` la riavvia, e una shell che trova il file
-  blocca di nuovo subito (serve `misc:allow_session_lock_restore = true`).
+  scrive `locked` in `$XDG_RUNTIME_DIR/flo-shell.locked` prima di richiedere
+  il blocco e lo svuota dopo l'autenticazione. Le scritture sono atomiche e
+  sincrone sul runtime directory: nessun processo di cancellazione può
+  eliminare il marker di un blocco successivo. `flo-shell run` riavvia la
+  shell; un marker non vuoto ripristina il blocco, uno vuoto conserva lo
+  sblocco (serve `misc:allow_session_lock_restore = true`).
 - **Limiti**: da bloccato non si raggiunge il menu di alimentazione (la
   superficie di blocco copre tutto): si sblocca prima, oppure si usa la
   pressione prolungata gestita dal firmware. Nessun conteggio dei tentativi
@@ -443,23 +468,22 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
   deriva le misure. Bersagli tattili da 60 px (9,4 mm), minimo 56 px (9 mm);
   testo corrente a 16 px, mai sotto 15 px. Nessun componente contiene misure
   proprie del dispositivo.
-- **Barre sottili, aree tattili larghe.** La barra di stato occupa 30 px e la
-  barra home 20 px, ma le loro superfici sono alte 48 px: la parte in più è
-  trasparente e serve solo a ricevere il tocco. Costo: i 18 px sotto la barra
-  e i 28 px sopra la barra home non arrivano all'applicazione.
-- **Navigazione a schermo.** Senza tasto home, la barra in basso fa da home:
-  tocco o scorrimento verso l'alto aprono il launcher, oppure chiudono ciò
-  che è aperto; uno scorrimento lungo apre la panoramica; nell'angolo destro
-  c'è il pulsante della tastiera. Sulla barra di stato tocco o scorrimento verso il basso
-  aprono le impostazioni rapide.
+- **Barre e input.** Stato: 30 px visibili, riservati e di input, senza
+  intercettare i controlli delle app. Navigazione inferiore: 68 px riservati,
+  pulsanti con bersagli da 60 px. Home offre anche un pulsante grande per
+  i controlli rapidi, alternativo al tocco/scorrimento sulla barra superiore.
+- **Navigazione a schermo.** Home mostra sempre la stessa schermata e
+  conserva le app. Indietro chiude prima i pannelli; App aperte mostra la
+  panoramica. I gesti sono scorciatoie aggiuntive e il comando tastiera resta
+  visibile. Una finestra arrivata dopo Home non ne ruba la visibilità.
 - **Zone del pollice.** In verticale i controlli usati spesso stanno nel
   terzo inferiore: riquadri e cursori delle impostazioni rapide, campo di
   ricerca e finestre aperte del launcher, pulsanti di alimentazione. In
   orizzontale stanno sul bordo destro: le impostazioni rapide diventano un
-  pannello laterale da 360 px con riquadri a sola icona, la ricerca va in
+  pannello laterale da 400 px (adattato al testo) con etichette visibili e controlli scorrevoli, la ricerca va in
   basso a destra, i pulsanti di alimentazione in colonna a destra.
-- **Disposizione per orientamento.** Griglia del launcher a 4 colonne in
-  verticale e 6 in orizzontale; popup delle notifiche in alto al centro in
+- **Disposizione per orientamento.** Griglia del launcher calcolata dalla
+  larghezza disponibile e dalla scala del testo, fino a 6 colonne; popup delle notifiche in alto al centro in
   verticale e in alto a destra in orizzontale.
 - **Niente rete mobile.** La barra mostra solo Wi-Fi o cavo.
 - **Dispositivi assenti.** Senza uscita audio (nessun sink PipeWire, o solo
@@ -477,8 +501,6 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
 
 - Gli scorrimenti sulle barre scattano al rilascio del dito, non a metà
   gesto: vedi il commento in `components/EdgeArea.qml`.
-- Il pulsante della tastiera sulla barra home è alto 48 px (l'altezza della
-  striscia tattile), sotto il minimo di 56: è largo 76 px per compensare.
 - Il campo di ricerca del launcher è in basso: con la tastiera aperta sale
   solo se il compositore accorcia la superficie del launcher per la zona
   esclusiva di wvkbd. Da verificare sul tablet.
@@ -504,3 +526,27 @@ bordi corti. Ha solo i tasti di accensione e volume. Non ha modem.
 - Freezer: nessuna inibizione automatica per audio o download (punto 7 di
   SESSIOND.md "Come lo usa la shell"): un lettore musicale in background
   viene congelato dopo la grazia; per ora `floctl inhibit`.
+
+## UI touch del tablet
+
+Home è una superficie opaca visibile all'accesso e su richiesta, sopra le
+finestre conservate e sotto i pannelli. Home è idempotente; Indietro chiude
+prima i pannelli e nelle app invia XF86Back (supporto dipendente dall'app).
+Le app già aperte vengono ritrovate tramite desktop id/app id prima di
+creare un nuovo scope. La home comunica a sessiond che nessuna app è in
+primo piano; riattivare una finestra ripristina la politica anche quando
+l'identità della finestra focalizzata non cambia.
+
+`UiPreferences` conserva scala del testo e movimento ridotto in
+`$XDG_STATE_HOME/flo-shell/ui.json` (fallback `~/.local/state`); il greeter
+non scrive preferenze. I controlli rapidi espongono 100/125/150% e movimento
+ridotto. `FLO_TEXT_SCALE` (1–1.5) e `FLO_REDUCED_MOTION=1` restano override
+per collaudi; `FLO_FAVORITES` sceglie gli id degli accessi rapidi. In sviluppo
+le preferenze restano nel runtime privato, separato dal profilo reale.
+
+I controlli comuni espongono ruolo, nome, stato e azioni accessibili, focus
+visibile e attivazione da tastiera. Gli slider hanno alternative −/+ al
+trascinamento. Il launcher calcola le colonne dalla larghezza disponibile
+e dalla scala del testo; i controlli rapidi diventano scorrevoli quando non
+entrano. Non viene modificata la scala globale 2× né il layout interno di
+app GTK esterne: l'adattamento delle loro barre laterali resta a quelle app.

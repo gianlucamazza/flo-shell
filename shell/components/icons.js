@@ -3,6 +3,9 @@
 // Line icons on a 24x24 grid, drawn as stroked paths by Icon.qml.
 // Kept as path data so they are tinted by the theme without shader effects.
 var paths = {
+    "home": "M3 11 L12 3 L21 11 M5 9 V21 H10 V14 H14 V21 H19 V9",
+    "back": "M14.5 5 L7.5 12 L14.5 19",
+    "apps": "M4 4 H9 V9 H4 Z M15 4 H20 V9 H15 Z M4 15 H9 V20 H4 Z M15 15 H20 V20 H15 Z",
     "wifi": "M2.5 9.5 A13.5 13.5 0 0 1 21.5 9.5 M5.8 13 A8.8 8.8 0 0 1 18.2 13 M9 16.4 A4.3 4.3 0 0 1 15 16.4 M12 19.8 L12 19.9",
     "wifi-off": "M2.5 9.5 A13.5 13.5 0 0 1 21.5 9.5 M5.8 13 A8.8 8.8 0 0 1 18.2 13 M9 16.4 A4.3 4.3 0 0 1 15 16.4 M12 19.8 L12 19.9 M4 3 L20 21",
     "wired": "M5 4 H19 V13 H5 Z M12 13 V18 M6 20 H18 M9 8 V9 M12 8 V9 M15 8 V9",

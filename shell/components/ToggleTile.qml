@@ -9,6 +9,7 @@ Pressable {
     property string label
     property string detail
     property bool active: false
+    property bool checkable: false
     property bool available: true
     // Icon only, for narrow sheets. The tile stays a full touch target.
     property bool compact: false
@@ -16,11 +17,15 @@ Pressable {
 
     readonly property color fg: active ? Theme.accentText : Theme.text
 
-    implicitHeight: compact ? Theme.touch : 76
+    implicitHeight: compact ? Theme.touch : Math.max(86, 3 * Theme.fontBody * 1.3 + 2 * Theme.spaceM)
     background: active ? activeColor : Theme.surfaceAlt
     pressedColor: active ? Qt.darker(activeColor, 1.2) : Theme.pressed
     opacity: available ? 1 : 0.45
     enabled: available
+    accessibleName: label + (detail !== "" ? ", " + detail : "")
+    Accessible.checkable: checkable
+    Accessible.checked: checkable && active
+    Accessible.onToggleAction: if (root.checkable && root.enabled) root.tapped()
 
     Icon {
         id: glyph
@@ -41,6 +46,8 @@ Pressable {
         Label {
             width: parent.width
             text: root.label
+            wrapMode: Text.Wrap
+            maximumLineCount: 2
             color: root.fg
             font.weight: Font.DemiBold
         }
