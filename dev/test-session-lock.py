@@ -107,7 +107,11 @@ ShellRoot {
         call('unlock')
         call('suspend')
         call('unlock')
+        assert not state()['suspendPending'], 'unlock did not cancel the pending suspend'
         call('confirm')
+        # _logind launches an asynchronous Process, so give a late dispatch
+        # time to reach the fake busctl before checking the absence of a call.
+        time.sleep(.5)
         assert logind_log.read_text().count('Suspend') == before_suspend + 1, 'cancelled suspend started after a late acknowledgement'
         os.killpg(proc.pid, signal.SIGTERM)
         proc.wait(timeout=5)
