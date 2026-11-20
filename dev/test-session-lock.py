@@ -27,11 +27,12 @@ import qs.services
 ShellRoot {
     IpcHandler {
         target: "test"
-        function state(): string { return JSON.stringify({locked: Session.locked, displayOn: Session.displayOn, calls: Compositor.calls}); }
+        function state(): string { return JSON.stringify({locked: Session.locked, displayOn: Session.displayOn, calls: Compositor.calls, suspendPending: Session._suspendPending}); }
         function blank(): void { Session.lock(); Session.setDisplay(false); }
         function confirm(): void { Session.lockSecure = true; }
         function wake(): void { Session.setDisplay(true); }
         function unlock(): void { Session.unlock(); Session.lockSecure = false; }
+        function suspend(): void { Session.suspend(); }
     }
 }
 ''')
@@ -40,8 +41,14 @@ ShellRoot {
     remover = bindir / 'rm'
     remover.write_text('#!/bin/sh\nsleep 0.3\nexec /usr/bin/rm "$@"\n')
     remover.chmod(0o755)
+    fake_busctl = bindir / 'busctl'
+    fake_busctl.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$FLO_TEST_LOGIND_LOG"\n')
+    fake_busctl.chmod(0o755)
+    logind_log = root / 'logind'
+    logind_log.touch()
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QSG_RHI_BACKEND='software',
-               FLO_STATE_DIR=str(root / 'state'), PATH=str(bindir) + ':' + os.environ['PATH'])
+               FLO_STATE_DIR=str(root / 'state'), FLO_TEST_LOGIND_LOG=str(logind_log),
+               PATH=str(bindir) + ':' + os.environ['PATH'])
     (root / 'state').mkdir()
     log = (root / 'log').open('w+')
     proc = subprocess.Popen(['dbus-run-session', '--config-file=' + str(SOURCE.parents[2] / 'dev/dbus-session.conf'),
@@ -84,6 +91,28 @@ ShellRoot {
         marker = root / 'state/flo-shell.locked'
         assert marker.exists() and marker.read_text().strip() == 'locked', 'unlock cleanup removed a newer lock marker'
         call('unlock')
+        # Suspend may only start after the compositor confirms the lock.
+        before_suspend = logind_log.read_text().count('Suspend')
+        call('suspend')
+        assert state()['locked'] and state()['suspendPending'], 'suspend was not held for the secure lock'
+        assert logind_log.read_text().count('Suspend') == before_suspend, 'suspend started before the lock acknowledgement'
+        call('suspend')
+        call('confirm')
+        end = time.monotonic() + 2
+        while logind_log.read_text().count('Suspend') == before_suspend:
+            assert time.monotonic() < end, 'confirmed lock did not start suspend'
+            time.sleep(.025)
+        assert logind_log.read_text().count('Suspend') == before_suspend + 1, 'duplicate suspend request'
+        assert not state()['suspendPending'], 'suspend remained pending after dispatch'
+        call('unlock')
+        call('suspend')
+        call('unlock')
+        assert not state()['suspendPending'], 'unlock did not cancel the pending suspend'
+        call('confirm')
+        # _logind launches an asynchronous Process, so give a late dispatch
+        # time to reach the fake busctl before checking the absence of a call.
+        time.sleep(.5)
+        assert logind_log.read_text().count('Suspend') == before_suspend + 1, 'cancelled suspend started after a late acknowledgement'
         os.killpg(proc.pid, signal.SIGTERM)
         proc.wait(timeout=5)
         proc = subprocess.Popen(['dbus-run-session', '--config-file=' + str(SOURCE.parents[2] / 'dev/dbus-session.conf'),

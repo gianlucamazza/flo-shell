@@ -200,6 +200,10 @@ dall'inattività resta pendente finché il blocco non è confermato, così il
 primo frame della lock screen può essere presentato. Una richiesta di
 riaccensione o uno sblocco annulla lo spegnimento pendente, anche se la
 conferma arriva più tardi. La riaccensione conserva sempre il requisito PAM.
+Anche `Session.suspend()` aspetta questa conferma prima di chiamare logind;
+uno sblocco prima della conferma annulla la richiesta e richieste ripetute
+durante l'attesa generano una sola chiamata. Questo ordine non risolve un
+eventuale errore di sospensione nel driver GPU.
 `dev/test-session-lock.py` verifica quest'ordine usando il servizio QML reale;
 la conferma e il ciclo DPMS vanno verificati anche sul compositore nativo.
 

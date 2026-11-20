@@ -23,9 +23,14 @@ Singleton {
     // The compositor has acknowledged the lock surfaces, not just our request.
     property bool lockSecure: false
     property bool _blankPending: false
+    property bool _suspendPending: false
     onLockSecureChanged: {
         if (lockSecure && _blankPending)
             setDisplay(false);
+        if (lockSecure && _suspendPending) {
+            _suspendPending = false;
+            _logind("Suspend");
+        }
     }
     // What the shell believes about the panel: it only changes through
     // setDisplay(), the compositor may also wake it on a key press.
@@ -63,7 +68,12 @@ Singleton {
     function reboot(): void { _logind("Reboot"); }
     function suspend(): void {
         lock();
-        _logind("Suspend");
+        if (lockSecure) {
+            _logind("Suspend");
+        } else {
+            // Do not enter system sleep before ext-session-lock covers output.
+            _suspendPending = true;
+        }
     }
 
     function lock(): void {
@@ -80,6 +90,7 @@ Singleton {
     function unlock(): void {
         if (!locked)
             return;
+        _suspendPending = false;
         locked = false;
         setDisplay(true);
         // A synchronous atomic tombstone cannot race a subsequent lock.
